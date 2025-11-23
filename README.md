@@ -2,7 +2,7 @@
 > Edited for use in IDX on 07/09/12
 
 # Welcome to your Expo app 👋
-
+,hdjh,hf,sdhf,hs,df,S
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
 ## Get started
