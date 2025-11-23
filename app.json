@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "algeriaeat",
-    "slug": "algeriaeat",
+    "name": "rkhis eat",
+    "slug": "rkhis-eat",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "algeriaeat",
+    "scheme": "rkhis-eat",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
