@@ -15,7 +15,16 @@ export function ThemedText({
   type = 'default',
   ...rest
 }: ThemedTextProps) {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+  // Force light mode colors for better visibility
+  const defaultColors: Record<string, string> = {
+    default: '#1A1A1A',
+    defaultSemiBold: '#1A1A1A',
+    title: '#000000',
+    subtitle: '#1A1A1A',
+    link: '#FF6B6B',
+  };
+  
+  const color = lightColor || defaultColors[type] || '#1A1A1A';
 
   return (
     <Text
@@ -37,24 +46,32 @@ const styles = StyleSheet.create({
   default: {
     fontSize: 16,
     lineHeight: 24,
+    color: '#1A1A1A',
+    fontWeight: '400',
   },
   defaultSemiBold: {
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '600',
+    color: '#1A1A1A',
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
-    lineHeight: 32,
+    fontWeight: '800',
+    lineHeight: 40,
+    color: '#000000',
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    lineHeight: 28,
+    color: '#1A1A1A',
   },
   link: {
     lineHeight: 30,
     fontSize: 16,
-    color: '#0a7ea4',
+    color: '#FF6B6B',
+    fontWeight: '600',
   },
 });
