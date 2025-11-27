@@ -25,12 +25,18 @@ export default function LoginScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const palette = Colors[colorScheme];
   const styles = useMemo(() => createStyles(palette), [palette]);
-  const { signInWithEmail } = useSession();
+  const { signInWithEmail, loginAsRole } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const quickRoles = [
+    { role: 'client' as const, label: 'Client', icon: 'home', route: '/(tabs)' },
+    { role: 'restaurant' as const, label: 'Restaurant', icon: 'restaurant', route: '/(restaurant)/dashboard' },
+    { role: 'livreur' as const, label: 'Livreur', icon: 'bicycle', route: '/(livreur)/home' },
+    { role: 'admin' as const, label: 'Admin', icon: 'shield-checkmark', route: '/(admin)/dashboard' },
+  ];
 
   const handleLogin = async () => {
     setError('');
@@ -48,6 +54,11 @@ export default function LoginScreen() {
     } else {
       router.replace('/(tabs)/profile');
     }
+  };
+
+  const handleQuickLogin = (role: (typeof quickRoles)[number]['role'], route: string) => {
+    loginAsRole(role);
+    router.replace(route as any);
   };
 
   return (
@@ -147,6 +158,21 @@ export default function LoginScreen() {
               <TouchableOpacity onPress={() => router.push('/signup')}>
                 <ThemedText style={styles.signupLink}>S'inscrire</ThemedText>
               </TouchableOpacity>
+            </View>
+
+            <View style={styles.quickLoginSection}>
+              <ThemedText style={styles.quickLoginTitle}>Connexion rapide</ThemedText>
+              <View style={styles.quickLoginRow}>
+                {quickRoles.map((item) => (
+                  <TouchableOpacity
+                    key={item.role}
+                    style={styles.quickLoginButton}
+                    onPress={() => handleQuickLogin(item.role, item.route)}>
+                    <Ionicons name={item.icon as any} size={20} color={palette.accent} />
+                    <ThemedText style={styles.quickLoginLabel}>{item.label}</ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           </Animated.View>
         </View>
@@ -268,6 +294,38 @@ const createStyles = (palette: typeof Colors.light) =>
       fontSize: 14,
       color: palette.accent,
       fontWeight: '600',
+    },
+    quickLoginSection: {
+      marginTop: 24,
+    },
+    quickLoginTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: palette.text,
+      marginBottom: 12,
+    },
+    quickLoginRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+    },
+    quickLoginButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 12,
+      backgroundColor: palette.surfaceMuted,
+      borderWidth: 1,
+      borderColor: palette.border,
+      gap: 8,
+      flexGrow: 1,
+      justifyContent: 'center',
+    },
+    quickLoginLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: palette.text,
     },
     errorContainer: {
       flexDirection: 'row',

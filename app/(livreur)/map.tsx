@@ -2,111 +2,157 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useOrders } from '@/providers/orders-provider';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo } from 'react';
-import { Dimensions, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import React, { Fragment, useMemo } from 'react';
+import {
+  Dimensions,
+  FlatList,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function LivreurMapScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme() ?? 'light';
   const palette = Colors[colorScheme];
   const styles = useMemo(() => createStyles(palette), [palette]);
+  const { orders } = useOrders();
+
+  const deliveries = orders.slice(0, 4).map((order, index) => ({
+    id: order.id,
+    restaurant: order.restaurant,
+    status: index === 0 ? 'en route' : index === 1 ? 'en attente' : 'planifiée',
+    earnings: 300 + index * 50,
+    eta: `${10 + index * 5} min`,
+    distance: `${(1.2 + index * 0.3).toFixed(1)} km`,
+    pickup: {
+      latitude: 36.7738 - index * 0.01,
+      longitude: 3.0588 + index * 0.01,
+    },
+    dropoff: {
+      latitude: 36.7538 - index * 0.01,
+      longitude: 3.0688,
+    },
+  }));
 
   return (
     <ThemedView style={styles.container}>
-      {/* Map Placeholder */}
-      <View style={styles.mapContainer}>
-        <View style={[styles.mapPlaceholder, { backgroundColor: colorScheme === 'dark' ? '#1a1a2e' : '#E8F4FD' }]}>
-          <Ionicons name="map" size={64} color={palette.textMuted} />
-          <ThemedText style={styles.mapPlaceholderText}>Carte en cours de chargement...</ThemedText>
-          <ThemedText style={styles.mapSubtext}>Intégration Google Maps / Mapbox</ThemedText>
-        </View>
-      </View>
+      <MapView
+        style={styles.map}
+        initialRegion={{
+          latitude: deliveries[0]?.pickup.latitude ?? 36.7638,
+          longitude: deliveries[0]?.pickup.longitude ?? 3.0588,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        }}
+        showsUserLocation
+        followsUserLocation>
+        {deliveries.map((delivery) => (
+          <Fragment key={delivery.id}>
+            <Marker
+              coordinate={delivery.pickup}
+              title={delivery.restaurant}
+              description="Pickup"
+              pinColor="#4CAF50"
+            />
+            <Marker
+              coordinate={delivery.dropoff}
+              title="Client"
+              description={delivery.eta}
+              pinColor="#FF6B6B"
+            />
+          </Fragment>
+        ))}
+      </MapView>
 
-      {/* Top Controls */}
+      {/* Map controls */}
       <View style={[styles.topControls, { top: insets.top + 10 }]}>
         <TouchableOpacity style={styles.controlButton}>
-          <Ionicons name="menu" size={24} color={palette.text} />
+          <Ionicons name="menu" size={22} color={palette.text} />
         </TouchableOpacity>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color={palette.icon} />
-          <ThemedText style={styles.searchText}>Rechercher une adresse...</ThemedText>
-        </View>
         <TouchableOpacity style={styles.controlButton}>
-          <Ionicons name="layers" size={24} color={palette.text} />
+          <Ionicons name="locate" size={22} color={palette.text} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.controlButton}>
+          <Ionicons name="layers" size={22} color={palette.text} />
         </TouchableOpacity>
       </View>
 
-      {/* Bottom Card */}
-      <View style={[styles.bottomCard, { paddingBottom: insets.bottom + 20 }]}>
-        <View style={styles.activeDeliveryHeader}>
-          <View style={styles.activeIndicator} />
-          <ThemedText type="defaultSemiBold" style={styles.activeDeliveryTitle}>Livraison en cours</ThemedText>
-        </View>
-
-        <View style={styles.deliveryInfo}>
-          <View style={styles.routeInfo}>
-            <View style={styles.routePoint}>
-              <View style={[styles.routeDot, { backgroundColor: palette.success }]} />
-              <View style={styles.routeDetails}>
-                <ThemedText style={styles.routeLabel}>Récupération</ThemedText>
-                <ThemedText style={styles.routeAddress}>Le Gourmet Algérien</ThemedText>
-                <ThemedText style={styles.routeSubtext}>Rue Didouche Mourad, Alger</ThemedText>
-              </View>
-            </View>
-            <View style={styles.routeLine} />
-            <View style={styles.routePoint}>
-              <View style={[styles.routeDot, { backgroundColor: palette.accent }]} />
-              <View style={styles.routeDetails}>
-                <ThemedText style={styles.routeLabel}>Livraison</ThemedText>
-                <ThemedText style={styles.routeAddress}>Ahmed Benali</ThemedText>
-                <ThemedText style={styles.routeSubtext}>45 Rue Larbi Ben M'hidi, Alger</ThemedText>
-              </View>
-            </View>
+      {/* Bottom sheet */}
+      <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 20 }]}>
+        <View style={styles.sheetHeader}>
+          <View>
+            <ThemedText type="subtitle" style={styles.sheetTitle}>
+              Missions du jour
+            </ThemedText>
+            <ThemedText style={styles.sheetSubtitle}>{deliveries.length} livraisons actives</ThemedText>
           </View>
-        </View>
-
-        <View style={styles.deliveryStats}>
-          <View style={styles.stat}>
-            <Ionicons name="time" size={18} color={palette.accent} />
-            <ThemedText style={styles.statValue}>12 min</ThemedText>
-            <ThemedText style={styles.statLabel}>ETA</ThemedText>
-          </View>
-          <View style={styles.stat}>
-            <Ionicons name="navigate" size={18} color={palette.accent} />
-            <ThemedText style={styles.statValue}>2.3 km</ThemedText>
-            <ThemedText style={styles.statLabel}>Distance</ThemedText>
-          </View>
-          <View style={styles.stat}>
-            <Ionicons name="cash" size={18} color={palette.success} />
-            <ThemedText style={styles.statValue}>400 DA</ThemedText>
-            <ThemedText style={styles.statLabel}>Gain</ThemedText>
-          </View>
-        </View>
-
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.callButton}>
-            <Ionicons name="call" size={20} color={palette.accent} />
-            <ThemedText style={styles.callButtonText}>Appeler</ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navigateButton}>
-            <Ionicons name="navigate" size={20} color="#FFFFFF" />
-            <ThemedText style={styles.navigateButtonText}>Naviguer</ThemedText>
+          <TouchableOpacity style={styles.filterButton}>
+            <Ionicons name="options" size={18} color={palette.accent} />
+            <ThemedText style={styles.filterText}>Filtrer</ThemedText>
           </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Floating Controls */}
-      <View style={styles.floatingControls}>
-        <TouchableOpacity style={styles.floatingButton}>
-          <Ionicons name="locate" size={22} color={palette.accent} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.floatingButton}>
-          <Ionicons name="compass" size={22} color={palette.accent} />
-        </TouchableOpacity>
+        <FlatList
+          data={deliveries}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.deliveryCard}>
+              <View style={styles.deliveryHeader}>
+                <View>
+                  <ThemedText type="defaultSemiBold" style={styles.deliveryRestaurant}>
+                    {item.restaurant}
+                  </ThemedText>
+                  <ThemedText style={styles.deliveryId}>{item.id}</ThemedText>
+                </View>
+                <View
+                  style={[
+                    styles.deliveryStatus,
+                    item.status === 'en route' && styles.statusActive,
+                    item.status === 'en attente' && styles.statusPending,
+                  ]}>
+                  <ThemedText
+                    style={[
+                      styles.deliveryStatusText,
+                      (item.status === 'en route' || item.status === 'en attente') && styles.deliveryStatusTextActive,
+                    ]}>
+                    {item.status}
+                  </ThemedText>
+                </View>
+              </View>
+              <View style={styles.deliveryMeta}>
+                <View style={styles.metaRow}>
+                  <Ionicons name="time" size={16} color={palette.icon} />
+                  <ThemedText style={styles.metaText}>{item.eta}</ThemedText>
+                </View>
+                <View style={styles.metaRow}>
+                  <Ionicons name="navigate" size={16} color={palette.icon} />
+                  <ThemedText style={styles.metaText}>{item.distance}</ThemedText>
+                </View>
+                <View style={styles.metaRow}>
+                  <Ionicons name="cash" size={16} color={palette.success} />
+                  <ThemedText style={styles.metaText}>{item.earnings} DA</ThemedText>
+                </View>
+              </View>
+              <View style={styles.deliveryActions}>
+                <TouchableOpacity style={styles.actionPrimary}>
+                  <Ionicons name="navigate" size={16} color="#FFFFFF" />
+                  <ThemedText style={styles.actionPrimaryText}>Commencer</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionSecondary}>
+                  <ThemedText style={styles.actionSecondaryText}>Détails</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        />
       </View>
     </ThemedView>
   );
@@ -115,17 +161,13 @@ export default function LivreurMapScreen() {
 const createStyles = (palette: typeof Colors.light) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: palette.background },
-    mapContainer: { flex: 1 },
-    mapPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    mapPlaceholderText: { fontSize: 16, color: palette.textMuted, marginTop: 16 },
-    mapSubtext: { fontSize: 12, color: palette.textMuted, marginTop: 4 },
+    map: { flex: 1 },
     topControls: {
       position: 'absolute',
-      left: 20,
-      right: 20,
+      left: 16,
+      right: 16,
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
+      justifyContent: 'space-between',
     },
     controlButton: {
       width: 44,
@@ -135,95 +177,99 @@ const createStyles = (palette: typeof Colors.light) =>
       justifyContent: 'center',
       alignItems: 'center',
       ...Platform.select({
-        ios: { shadowColor: palette.heroShadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8 },
+        ios: { shadowColor: palette.heroShadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6 },
         android: { elevation: 4 },
       }),
     },
-    searchBar: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: palette.surface,
-      borderRadius: 22,
-      paddingHorizontal: 16,
-      height: 44,
-      gap: 8,
-      ...Platform.select({
-        ios: { shadowColor: palette.heroShadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8 },
-        android: { elevation: 4 },
-      }),
-    },
-    searchText: { fontSize: 14, color: palette.textMuted },
-    bottomCard: {
+    bottomSheet: {
       position: 'absolute',
-      bottom: 0,
       left: 0,
       right: 0,
+      bottom: 0,
       backgroundColor: palette.surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingHorizontal: 20,
-      paddingTop: 20,
+      paddingTop: 16,
+      maxHeight: SCREEN_WIDTH * 1.2,
       ...Platform.select({
-        ios: { shadowColor: palette.heroShadow, shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.15, shadowRadius: 12 },
-        android: { elevation: 8 },
+        ios: { shadowColor: palette.heroShadow, shadowOffset: { width: 0, height: -6 }, shadowOpacity: 0.2, shadowRadius: 20 },
+        android: { elevation: 12 },
       }),
     },
-    activeDeliveryHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-    activeIndicator: { width: 10, height: 10, borderRadius: 5, backgroundColor: palette.success, marginRight: 8 },
-    activeDeliveryTitle: { fontSize: 16, color: palette.text },
-    deliveryInfo: { marginBottom: 16 },
-    routeInfo: {},
-    routePoint: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-    routeDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
-    routeDetails: { flex: 1 },
-    routeLabel: { fontSize: 11, color: palette.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-    routeAddress: { fontSize: 15, fontWeight: '600', color: palette.text, marginTop: 2 },
-    routeSubtext: { fontSize: 12, color: palette.textMuted, marginTop: 2 },
-    routeLine: { width: 2, height: 20, backgroundColor: palette.border, marginLeft: 5, marginVertical: 4 },
-    deliveryStats: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 16, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: palette.border, marginBottom: 16 },
-    stat: { alignItems: 'center' },
-    statValue: { fontSize: 16, fontWeight: '700', color: palette.text, marginTop: 4 },
-    statLabel: { fontSize: 11, color: palette.textMuted, marginTop: 2 },
-    actionButtons: { flexDirection: 'row', gap: 12 },
-    callButton: {
+    sheetHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    sheetTitle: { fontSize: 20, fontWeight: '700', color: palette.text },
+    sheetSubtitle: { fontSize: 13, color: palette.textMuted },
+    filterButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: palette.accentMuted,
+    },
+    filterText: { fontSize: 13, color: palette.accent, fontWeight: '600' },
+    deliveryCard: {
+      backgroundColor: palette.card,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
+      ...Platform.select({
+        ios: { shadowColor: palette.heroShadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 6 },
+        android: { elevation: 3 },
+      }),
+    },
+    deliveryHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    deliveryRestaurant: { fontSize: 16, fontWeight: '700', color: palette.text },
+    deliveryId: { fontSize: 12, color: palette.textMuted },
+    deliveryStatus: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+      backgroundColor: palette.surfaceMuted,
+    },
+    statusActive: { backgroundColor: palette.accent },
+    statusPending: { backgroundColor: palette.accentMuted },
+    deliveryStatusText: { fontSize: 12, color: palette.text },
+    deliveryStatusTextActive: { color: '#FFFFFF' },
+    deliveryMeta: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    metaText: { fontSize: 13, color: palette.textMuted, fontWeight: '500' },
+    deliveryActions: { flexDirection: 'row', gap: 10 },
+    actionPrimary: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: palette.accentMuted,
-      paddingVertical: 14,
+      gap: 6,
+      paddingVertical: 10,
       borderRadius: 12,
-      gap: 8,
-    },
-    callButtonText: { fontSize: 15, fontWeight: '600', color: palette.accent },
-    navigateButton: {
-      flex: 2,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
       backgroundColor: palette.accent,
-      paddingVertical: 14,
-      borderRadius: 12,
-      gap: 8,
     },
-    navigateButtonText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
-    floatingControls: {
-      position: 'absolute',
-      right: 20,
-      bottom: 320,
-      gap: 12,
-    },
-    floatingButton: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: palette.surface,
-      justifyContent: 'center',
+    actionPrimaryText: { color: '#FFFFFF', fontWeight: '700' },
+    actionSecondary: {
+      flex: 1,
       alignItems: 'center',
-      ...Platform.select({
-        ios: { shadowColor: palette.heroShadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8 },
-        android: { elevation: 4 },
-      }),
+      justifyContent: 'center',
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: palette.border,
     },
+    actionSecondaryText: { color: palette.text, fontWeight: '600' },
   });

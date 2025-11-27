@@ -1,5 +1,6 @@
 import { StyleSheet, Text, type TextProps } from 'react-native';
 
+import { useAccessibility } from '@/hooks/use-accessibility';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 export type ThemedTextProps = TextProps & {
@@ -53,14 +54,22 @@ export function ThemedText({
   type = 'default',
   ...rest
 }: ThemedTextProps) {
+  const { fontScale, highContrast } = useAccessibility();
   const token = type === 'link' ? 'tint' : 'text';
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, token);
+  const color = useThemeColor({ light: lightColor, dark: darkColor }, token, highContrast);
+  const scaleFactor = fontScale === 'large' ? 1.1 : fontScale === 'xlarge' ? 1.25 : 1;
+  const baseStyle = TYPE_STYLES[typeColorMap[type]];
+  const scaledStyle = {
+    ...baseStyle,
+    fontSize: baseStyle.fontSize ? baseStyle.fontSize * scaleFactor : undefined,
+    lineHeight: baseStyle.lineHeight ? baseStyle.lineHeight * scaleFactor : undefined,
+  };
 
   return (
     <Text
       style={[
         { color },
-        TYPE_STYLES[typeColorMap[type]],
+        scaledStyle,
         style,
       ]}
       {...rest}

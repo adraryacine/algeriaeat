@@ -21,6 +21,7 @@ type SessionContextValue = {
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: Error | null }>;
   switchRole: (role: UserRole) => void; // For demo purposes
+  loginAsRole: (role: UserRole) => void;
 };
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
@@ -260,87 +261,17 @@ export function SessionProvider({ children }: PropsWithChildren) {
     return { error: error ? new Error(error.message) : null };
   };
 
-  // For demo purposes - switch between roles without re-authenticating
+  // For demo / role switching
   const switchRole = (role: UserRole) => {
-    if (!user) return;
+    const profile = buildProfileForRole(role, user);
+    setUser(profile);
+  };
 
-    // Create a demo profile for the new role
-    const baseProfile = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      phone: user.phone,
-      avatar: user.avatar,
-    };
-
-    switch (role) {
-      case 'restaurant':
-        setUser({
-          ...baseProfile,
-          role: 'restaurant',
-          restaurant_id: 'demo-restaurant-1',
-          restaurant_name: 'Mon Restaurant Demo',
-          cuisine_types: ['Algérien', 'Traditionnel'],
-          address: '123 Rue Didouche Mourad, Alger',
-          wilaya: '16',
-          commune: 'Alger Centre',
-          opening_hours: {},
-          is_verified: true,
-          average_rating: 4.5,
-          total_reviews: 120,
-          delivery_zones: ['16'],
-          minimum_order: 500,
-          delivery_fee: 150,
-          estimated_delivery_time: '30-45 min',
-          is_open: true,
-          is_accepting_orders: true,
-          commission_rate: 15,
-        } as RestaurantProfile);
-        break;
-
-      case 'livreur':
-        setUser({
-          ...baseProfile,
-          role: 'livreur',
-          vehicle_type: 'moto',
-          is_available: true,
-          is_verified: true,
-          total_deliveries: 245,
-          average_rating: 4.8,
-          total_earnings: 125000,
-          wilaya: '16',
-          zones: ['Alger Centre', 'Sidi M\'hamed', 'El Biar'],
-        } as LivreurProfile);
-        break;
-
-      case 'admin':
-        setUser({
-          ...baseProfile,
-          role: 'admin',
-          permissions: ['super_admin'],
-          department: 'Operations',
-        } as AdminProfile);
-        break;
-
-      default:
-        setUser({
-          ...baseProfile,
-          role: 'client',
-          addresses: [],
-          favorite_restaurants: [],
-          loyalty_points: 500,
-          vip_level: 'silver',
-          dietary_preferences: {
-            is_vegetarian: false,
-            is_vegan: false,
-            is_gluten_free: false,
-            allergies: [],
-            spice_level: 3,
-            calorie_conscious: false,
-          },
-          referral_code: generateReferralCode(),
-        } as ClientProfile);
-    }
+  const loginAsRole = (role: UserRole) => {
+    const profile = buildProfileForRole(role, null);
+    setUser(profile);
+    setSession(null);
+    setSupabaseUser(null);
   };
 
   const value = useMemo(
@@ -348,7 +279,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
       user,
       supabaseUser,
       session,
-      isAuthenticated: !!session,
+      isAuthenticated: !!user,
       isLoading,
       role: user?.role ?? null,
       signInWithEmail,
@@ -356,6 +287,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
       signOut,
       updateProfile,
       switchRole,
+      loginAsRole,
     }),
     [user, supabaseUser, session, isLoading]
   );
@@ -379,4 +311,98 @@ function generateReferralCode(): string {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return code;
+}
+
+function buildProfileForRole(role: UserRole, existing: UserProfile | null): UserProfile {
+  const base = {
+    id: existing?.id ?? `demo-${role}-${Math.random().toString(36).slice(2, 8)}`,
+    name: existing?.name ?? `Utilisateur ${role}`,
+    email: existing?.email ?? `demo+${role}@algeriaeat.com`,
+    phone: existing?.phone ?? '+213 555 000 000',
+    avatar:
+      existing?.avatar ??
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop',
+  };
+
+  switch (role) {
+    case 'restaurant':
+      return {
+        ...base,
+        role: 'restaurant',
+        restaurant_id: (existing as RestaurantProfile)?.restaurant_id ?? 'demo-restaurant-1',
+        restaurant_name: (existing as RestaurantProfile)?.restaurant_name ?? 'Restaurant Demo',
+        restaurant_logo: (existing as RestaurantProfile)?.restaurant_logo,
+        restaurant_cover: (existing as RestaurantProfile)?.restaurant_cover,
+        description:
+          (existing as RestaurantProfile)?.description ?? 'Espace partenaire AlgeriaEat.',
+        cuisine_types: (existing as RestaurantProfile)?.cuisine_types ?? ['Algérien', 'Traditionnel'],
+        address: (existing as RestaurantProfile)?.address ?? '123 Rue Didouche Mourad, Alger',
+        wilaya: (existing as RestaurantProfile)?.wilaya ?? '16',
+        commune: (existing as RestaurantProfile)?.commune ?? 'Alger Centre',
+        coordinates: (existing as RestaurantProfile)?.coordinates,
+        opening_hours: (existing as RestaurantProfile)?.opening_hours ?? {},
+        is_verified: (existing as RestaurantProfile)?.is_verified ?? true,
+        hygiene_rating: (existing as RestaurantProfile)?.hygiene_rating ?? 4.5,
+        average_rating: (existing as RestaurantProfile)?.average_rating ?? 4.6,
+        total_reviews: (existing as RestaurantProfile)?.total_reviews ?? 120,
+        delivery_zones: (existing as RestaurantProfile)?.delivery_zones ?? ['16'],
+        minimum_order: (existing as RestaurantProfile)?.minimum_order ?? 500,
+        delivery_fee: (existing as RestaurantProfile)?.delivery_fee ?? 150,
+        estimated_delivery_time:
+          (existing as RestaurantProfile)?.estimated_delivery_time ?? '30-45 min',
+        is_open: (existing as RestaurantProfile)?.is_open ?? true,
+        is_accepting_orders: (existing as RestaurantProfile)?.is_accepting_orders ?? true,
+        commission_rate: (existing as RestaurantProfile)?.commission_rate ?? 15,
+        bank_details: (existing as RestaurantProfile)?.bank_details,
+      } as RestaurantProfile;
+
+    case 'livreur':
+      return {
+        ...base,
+        role: 'livreur',
+        vehicle_type: (existing as LivreurProfile)?.vehicle_type ?? 'moto',
+        vehicle_plate: (existing as LivreurProfile)?.vehicle_plate ?? '123-ABC-16',
+        license_number: (existing as LivreurProfile)?.license_number ?? 'DRV-ALG-12345',
+        is_available: (existing as LivreurProfile)?.is_available ?? true,
+        is_verified: (existing as LivreurProfile)?.is_verified ?? true,
+        current_location: (existing as LivreurProfile)?.current_location,
+        active_delivery_id: (existing as LivreurProfile)?.active_delivery_id,
+        total_deliveries: (existing as LivreurProfile)?.total_deliveries ?? 250,
+        average_rating: (existing as LivreurProfile)?.average_rating ?? 4.9,
+        total_earnings: (existing as LivreurProfile)?.total_earnings ?? 125000,
+        wilaya: (existing as LivreurProfile)?.wilaya ?? '16',
+        zones: (existing as LivreurProfile)?.zones ?? ['Alger Centre', 'El Biar'],
+        bank_details: (existing as LivreurProfile)?.bank_details,
+      } as LivreurProfile;
+
+    case 'admin':
+      return {
+        ...base,
+        role: 'admin',
+        permissions: (existing as AdminProfile)?.permissions ?? ['manage_users', 'super_admin'],
+        department: (existing as AdminProfile)?.department ?? 'Operations',
+      } as AdminProfile;
+
+    default:
+      return {
+        ...base,
+        role: 'client',
+        addresses: (existing as ClientProfile)?.addresses ?? [],
+        favorite_restaurants: (existing as ClientProfile)?.favorite_restaurants ?? [],
+        loyalty_points: (existing as ClientProfile)?.loyalty_points ?? 500,
+        vip_level: (existing as ClientProfile)?.vip_level ?? 'silver',
+        dietary_preferences:
+          (existing as ClientProfile)?.dietary_preferences ?? {
+            is_vegetarian: false,
+            is_vegan: false,
+            is_gluten_free: false,
+            allergies: [],
+            spice_level: 3,
+            calorie_conscious: false,
+          },
+        birthday: (existing as ClientProfile)?.birthday,
+        referral_code: (existing as ClientProfile)?.referral_code ?? generateReferralCode(),
+        referred_by: (existing as ClientProfile)?.referred_by,
+      } as ClientProfile;
+  }
 }

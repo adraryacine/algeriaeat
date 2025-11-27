@@ -18,7 +18,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLoyalty } from '@/providers/loyalty-provider';
 import { useSession } from '@/providers/session-provider';
+import type { DeliveryAddress } from '@/types/user';
 
 const menuItems = [
   { id: 1, title: 'Mes commandes', icon: 'receipt', route: '/(tabs)/orders', badge: '3' },
@@ -31,24 +33,26 @@ const menuItems = [
   { id: 8, title: 'À propos', icon: 'information-circle', route: '' },
 ];
 
-const stats = [
-  { label: 'Commandes', value: '12', icon: 'receipt' },
-  { label: 'Favoris', value: '8', icon: 'heart' },
-  { label: 'Points', value: '450', icon: 'star' },
-];
-
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme() ?? 'light';
-  const palette = Colors[colorScheme];
+  const scheme = (useColorScheme() ?? 'light') as 'light' | 'dark';
+  const palette = Colors[scheme];
   const styles = useMemo(() => createStyles(palette), [palette]);
   const { isAuthenticated, user, signOut, isLoading, switchRole } = useSession();
+  const { loyalty } = useLoyalty();
+  const stats = [
+    { label: 'Commandes', value: '12', icon: 'receipt' },
+    { label: 'Favoris', value: '8', icon: 'heart' },
+    { label: 'Points', value: loyalty.points.toString(), icon: 'star' },
+  ];
   // Get location from addresses for client, or wilaya for other roles
   const getLocation = () => {
     if (!user) return 'Alger';
     if (user.role === 'client' && user.addresses?.length > 0) {
-      const defaultAddr = user.addresses.find(a => a.is_default) || user.addresses[0];
+      const defaultAddr =
+        (user.addresses.find((address: DeliveryAddress) => address.is_default) as DeliveryAddress | undefined) ||
+        (user.addresses[0] as DeliveryAddress);
       return defaultAddr?.commune || defaultAddr?.wilaya || 'Alger';
     }
     if (user.role === 'restaurant') return user.commune || user.wilaya || 'Alger';
@@ -110,27 +114,41 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-        <Animated.View entering={FadeInDown.duration(600)} style={styles.membershipCard}>
+        <Animated.View entering={FadeInDown.duration(600)} style={styles.loyaltyCard}>
           <LinearGradient
-            colors={[
-              palette.gradientPrimary[0],
-              palette.gradientPrimary[1],
-              palette.gradientPrimary[2] ?? palette.gradientPrimary[1],
-            ] as [string, string, string]}
+            colors={[palette.gradientPrimary[0], palette.gradientPrimary[1]]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.membershipGradient}
+            style={styles.loyaltyGradient}
           />
-          <View style={styles.membershipContent}>
-            <View>
-              <ThemedText style={styles.membershipHeading}>Programme Prime</ThemedText>
-              <ThemedText style={styles.membershipSub}>
-                Livraison offerte et surprises exclusives
-              </ThemedText>
+          <View style={styles.loyaltyContent}>
+            <View style={styles.loyaltyHeader}>
+              <View>
+                <ThemedText style={styles.loyaltyLabel}>Niveau</ThemedText>
+                <ThemedText style={styles.loyaltyTier}>{loyalty.tier.toUpperCase()}</ThemedText>
+              </View>
+              <View style={styles.loyaltyBadge}>
+                <Ionicons name="star" size={16} color="#FDE68A" />
+                <ThemedText style={styles.loyaltyBadgeText}>{loyalty.points} pts</ThemedText>
+              </View>
             </View>
-            <TouchableOpacity style={styles.membershipButton}>
-              <ThemedText style={styles.membershipButtonText}>Activer</ThemedText>
-            </TouchableOpacity>
+            <View style={styles.loyaltyProgress}>
+              <View
+                style={[
+                  styles.loyaltyProgressFill,
+                  { width: `${Math.min((loyalty.points / loyalty.nextTierPoints) * 100, 100)}%` },
+                ]}
+              />
+            </View>
+            <ThemedText style={styles.loyaltyNext}>Prochain palier: {loyalty.nextTierPoints} pts</ThemedText>
+            <View style={styles.loyaltyBenefitsRow}>
+              {loyalty.benefits.slice(0, 3).map((benefit: (typeof loyalty.benefits)[number]) => (
+                <View key={benefit.id} style={styles.loyaltyBenefit}>
+                  <Ionicons name={benefit.icon as any} size={18} color="#FFFFFF" />
+                  <ThemedText style={styles.loyaltyBenefitText}>{benefit.label}</ThemedText>
+                </View>
+              ))}
+            </View>
           </View>
         </Animated.View>
 
@@ -170,6 +188,109 @@ export default function ProfileScreen() {
               </View>
             ))}
           </View>
+        </Animated.View>
+
+        {/* Loyalty Details */}
+        <Animated.View entering={FadeInDown.duration(400).delay(150)} style={styles.loyaltySection}>
+          <View style={styles.loyaltySectionHeader}>
+            <ThemedText type="subtitle" style={styles.loyaltySectionTitle}>
+              Mes avantages
+            </ThemedText>
+            <TouchableOpacity>
+              <ThemedText style={styles.loyaltyLink}>Historique</ThemedText>
+            </TouchableOpacity>
+          </View>
+          {loyalty.benefits.map((benefit: (typeof loyalty.benefits)[number]) => (
+            <View key={benefit.id} style={styles.loyaltyBenefitRow}>
+              <View style={styles.loyaltyBenefitIcon}>
+                <Ionicons name={benefit.icon as any} size={18} color={palette.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <ThemedText style={styles.loyaltyBenefitTitle}>{benefit.label}</ThemedText>
+                <ThemedText style={styles.loyaltyBenefitDescription}>{benefit.description}</ThemedText>
+              </View>
+            </View>
+          ))}
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.duration(400).delay(200)} style={styles.loyaltyGrid}>
+          <View style={styles.referralCard}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="gift" size={20} color={palette.accent} />
+              <ThemedText style={styles.cardHeaderText}>Parrainage</ThemedText>
+            </View>
+            <ThemedText style={styles.referralCode}>{loyalty.referral.code}</ThemedText>
+            <ThemedText style={styles.referralHint}>Partage ton code pour gagner 300 pts</ThemedText>
+            <View style={styles.referralStats}>
+              <View>
+                <ThemedText style={styles.referralStatValue}>{loyalty.referral.totalReferrals}</ThemedText>
+                <ThemedText style={styles.referralStatLabel}>Filleuls</ThemedText>
+              </View>
+              <View>
+                <ThemedText style={styles.referralStatValue}>{loyalty.referral.pendingRewards}</ThemedText>
+                <ThemedText style={styles.referralStatLabel}>En attente</ThemedText>
+              </View>
+              <View>
+                <ThemedText style={styles.referralStatValue}>{loyalty.referral.redeemedRewards}</ThemedText>
+                <ThemedText style={styles.referralStatLabel}>Bonus</ThemedText>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.shareButton}>
+              <Ionicons name="share-social" size={16} color="#FFFFFF" />
+              <ThemedText style={styles.shareButtonText}>Partager</ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.cashbackCard}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="wallet" size={20} color="#FFFFFF" />
+              <ThemedText style={[styles.cardHeaderText, { color: '#FFFFFF' }]}>Cashback</ThemedText>
+            </View>
+            <ThemedText style={styles.cashbackBalance}>{loyalty.cashback.balance} {loyalty.cashback.currency}</ThemedText>
+            <ThemedText style={styles.cashbackHint}>Disponible dans ton portefeuille</ThemedText>
+            <View style={styles.cashbackRow}>
+              <ThemedText style={styles.cashbackLabel}>En cours</ThemedText>
+              <ThemedText style={styles.cashbackValue}>{loyalty.cashback.upcoming} {loyalty.cashback.currency}</ThemedText>
+            </View>
+            <TouchableOpacity style={styles.withdrawButton}>
+              <ThemedText style={styles.withdrawButtonText}>Retirer</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.duration(400).delay(250)} style={styles.historySection}>
+          <View style={styles.loyaltySectionHeader}>
+            <ThemedText type="subtitle" style={styles.loyaltySectionTitle}>
+              Activité fidélité
+            </ThemedText>
+            <TouchableOpacity>
+              <ThemedText style={styles.loyaltyLink}>Voir tout</ThemedText>
+            </TouchableOpacity>
+          </View>
+          {loyalty.history.map((item: (typeof loyalty.history)[number]) => (
+            <View key={item.id} style={styles.historyRow}>
+              <View style={styles.historyIcon}>
+                <Ionicons
+                  name={
+                    item.type === 'order'
+                      ? 'receipt'
+                      : item.type === 'referral'
+                        ? 'gift'
+                        : item.type === 'cashback'
+                          ? 'cash'
+                          : 'sparkles'
+                  }
+                  size={18}
+                  color={palette.accent}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <ThemedText style={styles.historyTitle}>{item.title}</ThemedText>
+                <ThemedText style={styles.historyDate}>{item.date}</ThemedText>
+              </View>
+              <ThemedText style={styles.historyPoints}>+{item.points} pts</ThemedText>
+            </View>
+          ))}
         </Animated.View>
 
         {/* Menu Items */}
@@ -309,44 +430,276 @@ const createStyles = (palette: typeof Colors.light) =>
       fontSize: 16,
       fontWeight: '600',
     },
-    membershipCard: {
+    loyaltyCard: {
       margin: 20,
       borderRadius: 24,
       overflow: 'hidden',
+      position: 'relative',
       backgroundColor: palette.surface,
     },
-    membershipGradient: {
+    loyaltyGradient: {
       ...StyleSheet.absoluteFillObject,
-      opacity: 0.65,
+      opacity: 0.9,
     },
-    membershipContent: {
+    loyaltyContent: {
       padding: 20,
+      gap: 16,
+    },
+    loyaltyHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      gap: 12,
     },
-    membershipHeading: {
-      fontSize: 18,
-      fontWeight: '700',
+    loyaltyLabel: {
+      color: '#D1FAE5',
+      fontSize: 13,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+    },
+    loyaltyTier: {
+      fontSize: 26,
       color: '#FFFFFF',
+      fontWeight: '800',
     },
-    membershipSub: {
-      fontSize: 14,
-      color: '#F8FAFC',
-      opacity: 0.9,
-      maxWidth: 220,
+    loyaltyBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.25)',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 999,
+      gap: 4,
     },
-    membershipButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
+    loyaltyBadgeText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    loyaltyProgress: {
+      width: '100%',
+      height: 8,
       borderRadius: 999,
       backgroundColor: 'rgba(255,255,255,0.2)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.45)',
+      overflow: 'hidden',
     },
-    membershipButtonText: {
+    loyaltyProgressFill: {
+      height: '100%',
+      backgroundColor: '#FCD34D',
+    },
+    loyaltyNext: {
+      color: '#F8FAFC',
+      fontSize: 13,
+    },
+    loyaltyBenefitsRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    loyaltyBenefit: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.2)',
+      padding: 10,
+      borderRadius: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    loyaltyBenefitText: {
       color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    loyaltySection: {
+      backgroundColor: palette.surface,
+      marginHorizontal: 20,
+      borderRadius: 20,
+      padding: 18,
+      marginBottom: 16,
+    },
+    loyaltySectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    loyaltySectionTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: palette.text,
+    },
+    loyaltyLink: {
+      fontSize: 13,
+      color: palette.accent,
+      fontWeight: '600',
+    },
+    loyaltyBenefitRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.border,
+    },
+    loyaltyBenefitIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: palette.accentMuted,
+    },
+    loyaltyBenefitTitle: {
+      fontSize: 15,
+      color: palette.text,
+      fontWeight: '600',
+    },
+    loyaltyBenefitDescription: {
+      fontSize: 13,
+      color: palette.textMuted,
+    },
+    loyaltyGrid: {
+      flexDirection: 'row',
+      gap: 12,
+      marginHorizontal: 20,
+      marginBottom: 16,
+      flexWrap: 'wrap',
+    },
+    referralCard: {
+      flex: 1,
+      minWidth: 160,
+      backgroundColor: palette.surface,
+      borderRadius: 20,
+      padding: 18,
+      gap: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: palette.border,
+    },
+    cashbackCard: {
+      flex: 1,
+      minWidth: 160,
+      borderRadius: 20,
+      padding: 18,
+      gap: 12,
+      backgroundColor: palette.accent,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 4,
+    },
+    cardHeaderText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: palette.text,
+    },
+    referralCode: {
+      fontSize: 24,
+      fontWeight: '800',
+      letterSpacing: 1,
+      color: palette.text,
+    },
+    referralHint: {
+      fontSize: 13,
+      color: palette.textMuted,
+    },
+    referralStats: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+    },
+    referralStatValue: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: palette.text,
+      textAlign: 'center',
+    },
+    referralStatLabel: {
+      fontSize: 12,
+      color: palette.textMuted,
+      textAlign: 'center',
+    },
+    shareButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      borderRadius: 12,
+      backgroundColor: palette.accent,
+    },
+    shareButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+    cashbackBalance: {
+      fontSize: 28,
+      color: '#FFFFFF',
+      fontWeight: '800',
+    },
+    cashbackHint: {
+      fontSize: 13,
+      color: 'rgba(255,255,255,0.85)',
+    },
+    cashbackRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    cashbackLabel: {
+      fontSize: 13,
+      color: 'rgba(255,255,255,0.8)',
+    },
+    cashbackValue: {
+      fontSize: 16,
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    withdrawButton: {
+      marginTop: 8,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.4)',
+      alignItems: 'center',
+    },
+    withdrawButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+    historySection: {
+      backgroundColor: palette.surface,
+      marginHorizontal: 20,
+      borderRadius: 20,
+      padding: 18,
+      marginBottom: 20,
+    },
+    historyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.border,
+    },
+    historyIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: palette.accentMuted,
+      marginRight: 12,
+    },
+    historyTitle: {
+      fontSize: 15,
+      color: palette.text,
+      fontWeight: '600',
+    },
+    historyDate: {
+      fontSize: 12,
+      color: palette.textMuted,
+    },
+    historyPoints: {
+      fontSize: 14,
+      color: palette.accent,
       fontWeight: '700',
     },
     profileHeader: {

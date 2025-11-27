@@ -3,16 +3,15 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { WILAYAS } from '@/types/user';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { WILAYAS } from '@/types/user';
 import { useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
-  GestureResponderEvent,
   Modal,
   NativeScrollEvent,
   Platform,
@@ -21,7 +20,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -51,6 +50,13 @@ const categories = [
   { id: 7, name: 'Café', icon: '☕', color: '#D4A574' },
   { id: 8, name: 'Algérien', icon: '🥘', color: '#FF6B9D' },
 ];
+const dietaryFilters = [
+  { id: 'vegetarian', label: 'Végétarien' },
+  { id: 'vegan', label: 'Vegan' },
+  { id: 'gluten-free', label: 'Sans gluten' },
+  { id: 'healthy', label: 'Healthy' },
+  { id: 'kids', label: 'Kids' },
+];
 
 // Sample restaurants
 const restaurants = [
@@ -65,6 +71,7 @@ const restaurants = [
     featured: true,
     wilayaCode: '16',
     highlights: ['Couscous', 'Chakhchoukha'],
+    dietaryOptions: ['vegetarian', 'healthy'],
   },
   {
     id: 2,
@@ -77,6 +84,7 @@ const restaurants = [
     featured: true,
     wilayaCode: '31',
     highlights: ['Four bois', 'Pizza Oranaise'],
+    dietaryOptions: ['kids', 'gluten-free'],
   },
   {
     id: 3,
@@ -89,6 +97,7 @@ const restaurants = [
     featured: false,
     wilayaCode: '16',
     highlights: ['Burger merguez'],
+    dietaryOptions: ['kids'],
   },
   {
     id: 4,
@@ -101,6 +110,7 @@ const restaurants = [
     featured: false,
     wilayaCode: '16',
     highlights: ['Fusion nippo-algérienne'],
+    dietaryOptions: ['healthy'],
   },
   {
     id: 5,
@@ -113,6 +123,7 @@ const restaurants = [
     featured: false,
     wilayaCode: '09',
     highlights: ['Makrout moderne'],
+    dietaryOptions: ['vegetarian'],
   },
   {
     id: 6,
@@ -125,6 +136,7 @@ const restaurants = [
     featured: false,
     wilayaCode: '16',
     highlights: ['Tacos bled style'],
+    dietaryOptions: ['kids'],
   },
 ];
 
@@ -162,6 +174,8 @@ const popularDishes = [
     price: '1200 DA',
     image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300',
     rating: 4.8,
+    calories: 640,
+    dietary: ['healthy'],
   },
   {
     id: 2,
@@ -170,6 +184,8 @@ const popularDishes = [
     price: '800 DA',
     image: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=300',
     rating: 4.6,
+    calories: 520,
+    dietary: ['vegetarian'],
   },
   {
     id: 3,
@@ -178,6 +194,8 @@ const popularDishes = [
     price: '650 DA',
     image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=300',
     rating: 4.7,
+    calories: 780,
+    dietary: ['kids'],
   },
   {
     id: 4,
@@ -186,6 +204,8 @@ const popularDishes = [
     price: '2500 DA',
     image: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=300',
     rating: 4.9,
+    calories: 420,
+    dietary: ['gluten-free', 'healthy'],
   },
 ];
 
@@ -243,7 +263,8 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   const [selectedCategory, setSelectedCategory] = useState(1);
-  const [selectedWilaya, setSelectedWilaya] = useState(wilayaOptions[0]?.code ?? '16');
+  const [selectedWilaya, setSelectedWilaya] = useState<string>(wilayaOptions[0]?.code ?? '16');
+  const [selectedDietaryFilters, setSelectedDietaryFilters] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
@@ -265,13 +286,21 @@ export default function HomeScreen() {
       : wilayaOptions.find((w) => w.code === selectedWilaya)?.name ?? 'Alger';
   const displayedRestaurants = useMemo<RestaurantItem[]>(
     () =>
-      restaurants.filter((restaurant: RestaurantItem) =>
-        selectedWilaya === 'ALL' ? true : restaurant.wilayaCode === selectedWilaya
-      ),
-    [selectedWilaya]
+      restaurants.filter((restaurant: RestaurantItem) => {
+        const matchesWilaya = selectedWilaya === 'ALL' ? true : restaurant.wilayaCode === selectedWilaya;
+        const matchesDietary =
+          selectedDietaryFilters.length === 0 ||
+          selectedDietaryFilters.every((filter) => restaurant.dietaryOptions?.includes(filter));
+        return matchesWilaya && matchesDietary;
+      }),
+    [selectedWilaya, selectedDietaryFilters]
+  );
+  const healthyDishes = useMemo(
+    () => popularDishes.filter((dish) => dish.dietary?.includes('healthy') || dish.dietary?.includes('kids')),
+    []
   );
   const toggleFavorite = (restaurantId: number) => {
-    setFavorites((prev) =>
+    setFavorites((prev: number[]) =>
       prev.includes(restaurantId)
         ? prev.filter((id: number) => id !== restaurantId)
         : [...prev, restaurantId]
@@ -481,6 +510,45 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+
+          <View style={styles.dietaryHeader}>
+            <ThemedText type="defaultSemiBold" style={styles.dietaryTitle}>
+              Préférences alimentaires
+            </ThemedText>
+            {selectedDietaryFilters.length > 0 && (
+              <TouchableOpacity onPress={() => setSelectedDietaryFilters([])}>
+                <ThemedText style={styles.clearDietaryText}>Réinitialiser</ThemedText>
+              </TouchableOpacity>
+            )}
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.dietaryChips}>
+            {dietaryFilters.map((filter) => {
+              const isActive = selectedDietaryFilters.includes(filter.id);
+              return (
+                <TouchableOpacity
+                  key={filter.id}
+                  style={[styles.dietaryChip, isActive && styles.dietaryChipActive]}
+                  onPress={() =>
+                    setSelectedDietaryFilters((prev) =>
+                      prev.includes(filter.id) ? prev.filter((id) => id !== filter.id) : [...prev, filter.id]
+                    )
+                  }
+                  activeOpacity={0.7}>
+                  <Ionicons
+                    name={isActive ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={16}
+                    color={isActive ? '#FFFFFF' : palette.icon}
+                  />
+                  <ThemedText style={[styles.dietaryChipText, isActive && styles.dietaryChipTextActive]}>
+                    {filter.label}
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </Animated.View>
 
 
@@ -687,6 +755,57 @@ export default function HomeScreen() {
           </ScrollView>
         </Animated.View>
 
+        {/* Healthy & Kids */}
+        <Animated.View entering={FadeInUp.duration(600).delay(380)} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Menus Healthy & Kids
+            </ThemedText>
+            <TouchableOpacity>
+              <ThemedText style={styles.seeAllText}>Personnaliser</ThemedText>
+            </TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.healthyContainer}>
+            {healthyDishes.map((dish, index) => (
+              <Animated.View key={dish.id} entering={FadeInRight.duration(500).delay(420 + index * 120)}>
+                <View style={styles.healthyCard}>
+                  <Image source={{ uri: dish.image }} style={styles.healthyImage} contentFit="cover" />
+                  <View style={styles.healthyContent}>
+                    <View style={styles.healthyHeader}>
+                      <ThemedText type="defaultSemiBold" style={styles.healthyTitle}>
+                        {dish.name}
+                      </ThemedText>
+                      <View style={styles.dishRating}>
+                        <Ionicons name="star" size={12} color="#FFD700" />
+                        <ThemedText style={styles.dishRatingText}>{dish.rating}</ThemedText>
+                      </View>
+                    </View>
+                    <ThemedText style={styles.healthyRestaurant}>{dish.restaurant}</ThemedText>
+                    <View style={styles.healthyTags}>
+                      {dish.dietary?.map((tag) => (
+                        <View key={tag} style={styles.dietaryBadge}>
+                          <ThemedText style={styles.dietaryBadgeText}>{tag}</ThemedText>
+                        </View>
+                      ))}
+                    </View>
+                    <View style={styles.healthyFooter}>
+                      <View>
+                        <ThemedText type="defaultSemiBold" style={styles.healthyPrice}>
+                          {dish.price}
+                        </ThemedText>
+                        <ThemedText style={styles.healthyCalories}>{dish.calories} kcal</ThemedText>
+                      </View>
+                      <TouchableOpacity style={styles.addToCartButton}>
+                        <Ionicons name="add" size={18} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </Animated.View>
+            ))}
+          </ScrollView>
+        </Animated.View>
+
         {/* All Restaurants */}
         <Animated.View
           entering={FadeInUp.duration(600).delay(400)}
@@ -803,10 +922,18 @@ export default function HomeScreen() {
                       </View>
                     </View>
                     <ThemedText style={styles.dishRestaurant}>{dish.restaurant}</ThemedText>
+                    <View style={styles.dishTagsRow}>
+                      {dish.dietary?.map((tag) => (
+                        <View key={tag} style={styles.dietaryBadge}>
+                          <ThemedText style={styles.dietaryBadgeText}>{tag}</ThemedText>
+                        </View>
+                      ))}
+                    </View>
                     <View style={styles.dishFooter}>
                       <ThemedText type="defaultSemiBold" style={styles.dishPrice}>
                         {dish.price}
                       </ThemedText>
+                      <ThemedText style={styles.dishCalories}>{dish.calories} kcal</ThemedText>
                       <TouchableOpacity style={styles.addToCartButton}>
                         <Ionicons name="add" size={18} color="#FFFFFF" />
                       </TouchableOpacity>
@@ -848,7 +975,7 @@ export default function HomeScreen() {
             </View>
             <FlatList
               data={wilayaOptions}
-              keyExtractor={(item) => item.code}
+              keyExtractor={(item: typeof wilayaOptions[number]) => item.code}
               renderItem={({ item }: { item: typeof wilayaOptions[number] }) => (
                 <TouchableOpacity
                   style={[
@@ -1080,6 +1207,53 @@ const createStyles = (palette: typeof Colors.light, scheme: 'light' | 'dark') =>
     categoriesContainer: {
       paddingHorizontal: 20,
       paddingRight: 40,
+    },
+    dietaryHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      marginTop: 18,
+      marginBottom: 8,
+    },
+    dietaryTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: palette.text,
+    },
+    clearDietaryText: {
+      fontSize: 13,
+      color: palette.accent,
+      fontWeight: '600',
+    },
+    dietaryChips: {
+      paddingHorizontal: 20,
+      paddingRight: 40,
+      gap: 10,
+    },
+    dietaryChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 999,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      backgroundColor: palette.surfaceMuted,
+      borderWidth: 1,
+      borderColor: palette.border,
+      marginRight: 10,
+      gap: 6,
+    },
+    dietaryChipActive: {
+      backgroundColor: palette.accent,
+      borderColor: palette.accent,
+    },
+    dietaryChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: palette.text,
+    },
+    dietaryChipTextActive: {
+      color: '#FFFFFF',
     },
     categoryItem: {
       width: CATEGORY_ITEM_WIDTH,
@@ -1327,6 +1501,12 @@ const createStyles = (palette: typeof Colors.light, scheme: 'light' | 'dark') =>
       marginBottom: 8,
       fontWeight: '500',
     },
+    dishTagsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginBottom: 6,
+    },
     dishHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -1357,6 +1537,11 @@ const createStyles = (palette: typeof Colors.light, scheme: 'light' | 'dark') =>
       fontSize: 16,
       color: palette.accent,
       fontWeight: '700',
+    },
+    dishCalories: {
+      fontSize: 12,
+      color: palette.textMuted,
+      marginRight: 10,
     },
     addToCartButton: {
       width: 32,
@@ -1466,6 +1651,42 @@ const createStyles = (palette: typeof Colors.light, scheme: 'light' | 'dark') =>
       paddingHorizontal: 20,
       paddingRight: 40,
     },
+    healthyContainer: {
+      paddingHorizontal: 20,
+      paddingRight: 40,
+    },
+    healthyCard: {
+      width: SCREEN_WIDTH * 0.72,
+      borderRadius: 20,
+      overflow: 'hidden',
+      backgroundColor: palette.card,
+      marginRight: 15,
+      ...Platform.select({
+        ios: { shadowColor: palette.heroShadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8 },
+        android: { elevation: 5 },
+      }),
+    },
+    healthyImage: { width: '100%', height: 140 },
+    healthyContent: { padding: 14, gap: 6 },
+    healthyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    healthyTitle: { fontSize: 16, fontWeight: '700', color: palette.text, flex: 1 },
+    healthyRestaurant: { fontSize: 13, color: palette.textMuted },
+    healthyTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+    dietaryBadge: {
+      backgroundColor: palette.accentMuted,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 10,
+    },
+    dietaryBadgeText: {
+      fontSize: 11,
+      color: palette.accent,
+      fontWeight: '600',
+      textTransform: 'capitalize',
+    },
+    healthyFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+    healthyPrice: { fontSize: 16, fontWeight: '700', color: palette.text },
+    healthyCalories: { fontSize: 12, color: palette.textMuted },
     promotionCard: {
       width: SCREEN_WIDTH * 0.85,
       height: 200,

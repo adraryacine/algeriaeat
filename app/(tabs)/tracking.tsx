@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import Animated, {
   FadeInDown,
   FadeInUp,
@@ -26,6 +27,12 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const routeCoordinates = [
+  { latitude: 36.7738, longitude: 3.0588 },
+  { latitude: 36.7638, longitude: 3.0588 },
+  { latitude: 36.7538, longitude: 3.0658 },
+  { latitude: 36.7438, longitude: 3.071 },
+];
 
 const trackingSteps = [
   { id: 1, title: 'Commande confirmée', time: '14:30', completed: true, icon: 'checkmark-circle' },
@@ -37,25 +44,39 @@ const trackingSteps = [
 export default function TrackingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme() ?? 'light';
-  const palette = Colors[colorScheme];
+  const scheme = (useColorScheme() ?? 'light') as 'light' | 'dark';
+  const palette = Colors[scheme];
   const styles = useMemo(() => createStyles(palette), [palette]);
 
-  const [currentStep, setCurrentStep] = useState(3);
-  const [estimatedTime, setEstimatedTime] = useState(15);
-  const [driverLocation, setDriverLocation] = useState({ lat: 36.7538, lng: 3.0588 });
+  const [currentStep, setCurrentStep] = useState<number>(3);
+  const [estimatedTime, setEstimatedTime] = useState<number>(15);
+  const [driverLocation, setDriverLocation] = useState<typeof routeCoordinates[number]>(routeCoordinates[1]);
+
+  useEffect(() => {
+    const locationTimer = setInterval(() => {
+      setDriverLocation((prev: typeof routeCoordinates[number]) => {
+        const currentIndex = routeCoordinates.findIndex(
+          (coord) => coord.latitude === prev.latitude && coord.longitude === prev.longitude
+        );
+        const nextIndex = currentIndex === -1 || currentIndex === routeCoordinates.length - 1 ? 0 : currentIndex + 1;
+        return routeCoordinates[nextIndex];
+      });
+    }, 5000);
+    return () => clearInterval(locationTimer);
+  }, []);
   const pulseAnimation = useSharedValue(0);
   const progressAnimation = useSharedValue(75);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setEstimatedTime((prev) => (prev > 0 ? prev - 1 : 0));
-      if (estimatedTime > 0) {
-        progressAnimation.value = withTiming((estimatedTime / 15) * 100, { duration: 1000 });
-      }
+    setEstimatedTime((prev) => {
+        const next = prev > 0 ? prev - 1 : 0;
+        progressAnimation.value = withTiming((next / 15) * 100, { duration: 1000 });
+        return next;
+      });
     }, 60000);
     return () => clearInterval(timer);
-  }, [estimatedTime]);
+  }, []);
 
   useEffect(() => {
     pulseAnimation.value = withRepeat(withTiming(1, { duration: 2000 }), -1, true);
@@ -279,7 +300,6 @@ export default function TrackingScreen() {
           </View>
         </Animated.View>
 
-        {/* Enhanced Map Placeholder */}
         <Animated.View entering={FadeInUp.duration(600).delay(600)} style={styles.mapContainer}>
           <View style={styles.mapHeader}>
             <ThemedText type="subtitle" style={styles.mapTitle}>
@@ -289,26 +309,22 @@ export default function TrackingScreen() {
               <Ionicons name="expand" size={20} color={palette.accent} />
             </TouchableOpacity>
           </View>
-          <View style={styles.mapPlaceholder}>
-            <LinearGradient colors={palette.gradientMuted as unknown as [string, string]} style={styles.mapGradient}>
-              <Ionicons name="map" size={64} color={palette.icon} />
-              <ThemedText style={styles.mapPlaceholderText}>Carte de suivi en temps réel</ThemedText>
-              <View style={styles.mapMarkers}>
-                <View style={styles.restaurantMarker}>
-                  <Ionicons name="restaurant" size={24} color={palette.success} />
-                </View>
-                <Animated.View style={[styles.driverMarker, pulseStyle]}>
-                  <Ionicons name="bicycle" size={24} color={palette.accent} />
-                </Animated.View>
-                <View style={styles.destinationMarker}>
-                  <Ionicons name="location" size={24} color={palette.accent} />
-                </View>
-              </View>
-            </LinearGradient>
-          </View>
+          <MapView
+            style={styles.mapPlaceholder}
+            initialRegion={{
+              latitude: driverLocation.latitude,
+              longitude: driverLocation.longitude,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            }}>
+            <Marker coordinate={routeCoordinates[0]} title="Restaurant" pinColor="#4CAF50" />
+            <Marker coordinate={routeCoordinates[routeCoordinates.length - 1]} title="Destination" pinColor="#FF6B6B" />
+            <Marker coordinate={driverLocation} title="Livreur" pinColor={palette.accent} />
+            <Polyline coordinates={routeCoordinates} strokeColor={palette.accent} strokeWidth={4} />
+          </MapView>
           <View style={styles.mapLegend}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: palette.success }]} />
+              <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
               <ThemedText style={styles.legendText}>Restaurant</ThemedText>
             </View>
             <View style={styles.legendItem}>
@@ -316,7 +332,7 @@ export default function TrackingScreen() {
               <ThemedText style={styles.legendText}>Livreur</ThemedText>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: palette.accent }]} />
+              <View style={[styles.legendDot, { backgroundColor: '#FF6B6B' }]} />
               <ThemedText style={styles.legendText}>Destination</ThemedText>
             </View>
           </View>

@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLoyalty } from '@/providers/loyalty-provider';
 import { useOrders } from '@/providers/orders-provider';
 import type { Order } from '@/types/order';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +49,7 @@ export default function PaymentScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const palette = Colors[colorScheme];
   const { addOrder } = useOrders();
+  const { addPoints } = useLoyalty();
   const styles = useMemo(() => createStyles(palette), [palette]);
 
   const [selectedMethod, setSelectedMethod] = useState(1);
@@ -82,6 +84,7 @@ export default function PaymentScreen() {
       estimatedTime: '30 min',
     };
     addOrder(newOrder);
+    addPoints(Math.round(orderSummary.total * 0.05), { source: 'order', title: newOrder.restaurant });
     Alert.alert(
       'Paiement réussi! 🎉',
       `Votre commande de ${orderSummary.total} DA (${method}) a été confirmée.`,

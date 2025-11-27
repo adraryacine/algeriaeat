@@ -21,11 +21,76 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const menuItems = [
-  { id: 1, name: 'Couscous Royal', price: 1200, description: 'Couscous avec agneau, poulet et merguez', image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300' },
-  { id: 2, name: "Tajine d'Agneau", price: 1500, description: 'Tajine traditionnel avec légumes', image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=300' },
-  { id: 3, name: 'Chorba', price: 400, description: 'Soupe traditionnelle algérienne', image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300' },
-  { id: 4, name: "Brik à l'œuf", price: 300, description: 'Feuille de brick avec œuf et thon', image: 'https://images.unsplash.com/photo-1565299585323-38174c0a5e0e?w=300' },
+  {
+    id: 1,
+    name: 'Couscous Royal',
+    price: 1200,
+    calories: 640,
+    dietary: ['healthy'],
+    description: 'Couscous avec agneau, poulet et merguez',
+    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300',
+  },
+  {
+    id: 2,
+    name: "Tajine d'Agneau",
+    price: 1500,
+    calories: 580,
+    dietary: ['gluten-free'],
+    description: 'Tajine traditionnel avec légumes',
+    image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=300',
+  },
+  {
+    id: 3,
+    name: 'Chorba',
+    price: 400,
+    calories: 210,
+    dietary: ['healthy', 'vegan'],
+    description: 'Soupe traditionnelle algérienne',
+    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300',
+  },
+  {
+    id: 4,
+    name: "Brik à l'œuf",
+    price: 300,
+    calories: 320,
+    dietary: ['kids'],
+    description: 'Feuille de brick avec œuf et thon',
+    image: 'https://images.unsplash.com/photo-1565299585323-38174c0a5e0e?w=300',
+  },
 ];
+
+const portionOptions = [
+  { id: 'mini', label: 'Mini', description: 'Portion découverte (-20%)' },
+  { id: 'standard', label: 'Standard', description: 'La plus choisie' },
+  { id: 'family', label: 'Familiale', description: 'Idéal 3 personnes (+40%)' },
+];
+
+const spiceLevels = ['Douce', 'Moyenne', 'Épicée', 'Très épicée'];
+
+const extraOptions = [
+  { id: 'extraHarissa', label: 'Harissa maison', price: 80 },
+  { id: 'extraVeggies', label: 'Légumes supplémentaires', price: 120 },
+  { id: 'extraSauce', label: 'Sauce aux oignons', price: 60 },
+];
+
+const dietaryOptions = [
+  { id: 'sansSel', label: 'Faible sel' },
+  { id: 'sansViande', label: 'Sans viande' },
+  { id: 'sansGluten', label: 'Sans gluten' },
+];
+
+type Customization = {
+  spice: string;
+  portion: (typeof portionOptions)[number]['id'];
+  extras: string[];
+  dietary: string[];
+};
+const createCustomization = (): Customization => ({
+  spice: spiceLevels[1],
+  portion: portionOptions[1].id,
+  extras: [],
+  dietary: [],
+});
 
 export default function RestaurantDetailScreen() {
   const router = useRouter();
@@ -37,8 +102,35 @@ export default function RestaurantDetailScreen() {
 
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
+  const [customizations, setCustomizations] = useState<Record<number, Customization>>({});
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<'menu' | 'reviews' | 'info'>('menu');
+  const getCustomization = (itemId: number) => customizations[itemId] ?? createCustomization();
+  const applyCustomization = (itemId: number, updater: (current: Customization) => Customization) => {
+    setCustomizations((prev) => {
+      const base = prev[itemId]
+        ? { ...prev[itemId], extras: [...prev[itemId].extras], dietary: [...prev[itemId].dietary] }
+        : createCustomization();
+      return { ...prev, [itemId]: updater(base) };
+    });
+  };
+  const selectPortion = (itemId: number, portionId: (typeof portionOptions)[number]['id']) =>
+    applyCustomization(itemId, (current) => ({ ...current, portion: portionId }));
+  const selectSpice = (itemId: number, spice: string) => applyCustomization(itemId, (current) => ({ ...current, spice }));
+  const toggleExtra = (itemId: number, extraId: string) =>
+    applyCustomization(itemId, (current) => ({
+      ...current,
+      extras: current.extras.includes(extraId)
+        ? current.extras.filter((id) => id !== extraId)
+        : [...current.extras, extraId],
+    }));
+  const toggleDietaryNote = (itemId: number, noteId: string) =>
+    applyCustomization(itemId, (current) => ({
+      ...current,
+      dietary: current.dietary.includes(noteId)
+        ? current.dietary.filter((id) => id !== noteId)
+        : [...current.dietary, noteId],
+    }));
 
   const restaurant = {
     id: id,
@@ -60,9 +152,15 @@ export default function RestaurantDetailScreen() {
       const newQuantities = { ...quantities };
       delete newQuantities[itemId];
       setQuantities(newQuantities);
+      setCustomizations((prev) => {
+        const next = { ...prev };
+        delete next[itemId];
+        return next;
+      });
     } else {
       setSelectedItems([...selectedItems, itemId]);
       setQuantities({ ...quantities, [itemId]: 1 });
+       setCustomizations((prev) => (prev[itemId] ? prev : { ...prev, [itemId]: createCustomization() }));
     }
   };
 
@@ -75,7 +173,12 @@ export default function RestaurantDetailScreen() {
 
   const totalPrice = selectedItems.reduce((sum, itemId) => {
     const item = menuItems.find((i) => i.id === itemId);
-    return sum + (item ? item.price * (quantities[itemId] || 1) : 0);
+    const qty = quantities[itemId] || 1;
+    const extrasCost = (customizations[itemId]?.extras || []).reduce((extraSum, extraId) => {
+      const extra = extraOptions.find((opt) => opt.id === extraId);
+      return extraSum + (extra?.price ?? 0);
+    }, 0);
+    return sum + ((item ? item.price : 0) + extrasCost) * qty;
   }, 0);
 
   return (
@@ -170,6 +273,14 @@ export default function RestaurantDetailScreen() {
                       {item.name}
                     </ThemedText>
                     <ThemedText style={styles.menuItemDescription}>{item.description}</ThemedText>
+                    <View style={styles.menuDietaryRow}>
+                      {item.dietary?.map((tag) => (
+                        <View key={tag} style={styles.menuDietaryBadge}>
+                          <ThemedText style={styles.menuDietaryText}>{tag}</ThemedText>
+                        </View>
+                      ))}
+                      <ThemedText style={styles.menuItemCalories}>{item.calories} kcal</ThemedText>
+                    </View>
                     <View style={styles.menuItemFooter}>
                       <ThemedText type="defaultSemiBold" style={styles.menuItemPrice}>
                         {item.price} DA
@@ -186,6 +297,91 @@ export default function RestaurantDetailScreen() {
                         </View>
                       )}
                     </View>
+                    {selectedItems.includes(item.id) && (
+                      <View style={styles.customizationCard}>
+                        <View style={styles.customizationRow}>
+                          <ThemedText style={styles.customizationLabel}>Portion</ThemedText>
+                          <View style={styles.chipRow}>
+                            {portionOptions.map((option) => {
+                              const customization = getCustomization(item.id);
+                              const isActive = customization.portion === option.id;
+                              return (
+                                <TouchableOpacity
+                                  key={option.id}
+                                  style={[styles.chip, isActive && styles.chipActive]}
+                                  onPress={() => selectPortion(item.id, option.id)}>
+                                  <ThemedText style={[styles.chipText, isActive && styles.chipTextActive]}>
+                                    {option.label}
+                                  </ThemedText>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </View>
+                        <View style={styles.customizationRow}>
+                          <ThemedText style={styles.customizationLabel}>Niveau de piment</ThemedText>
+                          <View style={styles.spiceRow}>
+                            {spiceLevels.map((level) => {
+                              const customization = getCustomization(item.id);
+                              const isActive = customization.spice === level;
+                              return (
+                                <TouchableOpacity
+                                  key={level}
+                                  style={[styles.spicePill, isActive && styles.spicePillActive]}
+                                  onPress={() => selectSpice(item.id, level)}>
+                                  <ThemedText style={[styles.spiceText, isActive && styles.spiceTextActive]}>{level}</ThemedText>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </View>
+                        <View style={styles.customizationRow}>
+                          <ThemedText style={styles.customizationLabel}>Options diététiques</ThemedText>
+                          <View style={styles.pillRow}>
+                            {dietaryOptions.map((option) => {
+                              const customization = getCustomization(item.id);
+                              const isActive = customization.dietary.includes(option.id);
+                              return (
+                                <TouchableOpacity
+                                  key={option.id}
+                                  style={[styles.dietaryOption, isActive && styles.dietaryOptionActive]}
+                                  onPress={() => toggleDietaryNote(item.id, option.id)}>
+                                  <ThemedText
+                                    style={[styles.dietaryOptionText, isActive && styles.dietaryOptionTextActive]}>
+                                    {option.label}
+                                  </ThemedText>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </View>
+                        <View style={styles.customizationRow}>
+                          <ThemedText style={styles.customizationLabel}>Suppléments</ThemedText>
+                          <View style={styles.extraList}>
+                            {extraOptions.map((extra) => {
+                              const customization = getCustomization(item.id);
+                              const isActive = customization.extras.includes(extra.id);
+                              return (
+                                <TouchableOpacity
+                                  key={extra.id}
+                                  style={[styles.extraItem, isActive && styles.extraItemActive]}
+                                  onPress={() => toggleExtra(item.id, extra.id)}>
+                                  <Ionicons
+                                    name={isActive ? 'checkbox' : 'square-outline'}
+                                    size={18}
+                                    color={isActive ? palette.accent : palette.icon}
+                                  />
+                                  <View style={styles.extraInfo}>
+                                    <ThemedText style={styles.extraLabel}>{extra.label}</ThemedText>
+                                    <ThemedText style={styles.extraPrice}>+{extra.price} DA</ThemedText>
+                                  </View>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      </View>
+                    )}
                   </View>
                 </TouchableOpacity>
               </Animated.View>
@@ -474,6 +670,29 @@ const createStyles = (palette: typeof Colors.light) =>
       fontWeight: '400',
       lineHeight: 18,
     },
+    menuDietaryRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginBottom: 8,
+    },
+    menuDietaryBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 10,
+      backgroundColor: palette.accentMuted,
+    },
+    menuDietaryText: {
+      fontSize: 11,
+      color: palette.accent,
+      fontWeight: '600',
+      textTransform: 'capitalize',
+    },
+    menuItemCalories: {
+      fontSize: 12,
+      color: palette.textMuted,
+      fontWeight: '600',
+    },
     menuItemFooter: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -503,6 +722,119 @@ const createStyles = (palette: typeof Colors.light) =>
       minWidth: 24,
       textAlign: 'center',
       color: palette.text,
+    },
+    customizationCard: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: palette.border,
+      gap: 12,
+    },
+    customizationRow: {
+      gap: 8,
+    },
+    customizationLabel: {
+      fontSize: 13,
+      color: palette.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      fontWeight: '700',
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: palette.border,
+    },
+    chipActive: {
+      backgroundColor: palette.accent,
+      borderColor: palette.accent,
+    },
+    chipText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: palette.text,
+    },
+    chipTextActive: {
+      color: '#FFFFFF',
+    },
+    spiceRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    spicePill: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 12,
+      backgroundColor: palette.surfaceMuted,
+    },
+    spicePillActive: {
+      backgroundColor: palette.accent,
+    },
+    spiceText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: palette.text,
+    },
+    spiceTextActive: {
+      color: '#FFFFFF',
+    },
+    pillRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    dietaryOption: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 10,
+      backgroundColor: palette.surfaceMuted,
+    },
+    dietaryOptionActive: {
+      backgroundColor: palette.accentMuted,
+    },
+    dietaryOptionText: {
+      fontSize: 12,
+      color: palette.text,
+    },
+    dietaryOptionTextActive: {
+      color: palette.accent,
+      fontWeight: '700',
+    },
+    extraList: {
+      gap: 8,
+    },
+    extraItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: palette.border,
+    },
+    extraItemActive: {
+      borderColor: palette.accent,
+      backgroundColor: palette.accentMuted,
+    },
+    extraInfo: {
+      flex: 1,
+    },
+    extraLabel: {
+      fontSize: 14,
+      color: palette.text,
+      fontWeight: '600',
+    },
+    extraPrice: {
+      fontSize: 12,
+      color: palette.textMuted,
     },
     orderBar: {
       position: 'absolute',
