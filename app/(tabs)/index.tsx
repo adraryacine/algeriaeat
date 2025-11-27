@@ -1,30 +1,36 @@
+import { ThemeToggle } from '@/components/theme-toggle';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { WILAYAS } from '@/types/user';
+import { useMemo, useRef, useState } from 'react';
 import {
-    Dimensions,
-    FlatList,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  FlatList,
+  GestureResponderEvent,
+  Modal,
+  NativeScrollEvent,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Animated, {
-    FadeInDown,
-    FadeInRight,
-    FadeInUp,
-    interpolate,
-    useAnimatedScrollHandler,
-    useAnimatedStyle,
-    useSharedValue
+  FadeInDown,
+  FadeInRight,
+  FadeInUp,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -32,8 +38,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HEADER_HEIGHT = 120;
 const CATEGORY_ITEM_WIDTH = 80;
 
-// Algerian cities
-const cities = ['Alger', 'Oran', 'Constantine', 'Annaba', 'Blida'];
+const wilayaOptions = WILAYAS.slice(0, 12);
 
 // Food categories
 const categories = [
@@ -58,6 +63,8 @@ const restaurants = [
     deliveryFee: '150 DA',
     image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400',
     featured: true,
+    wilayaCode: '16',
+    highlights: ['Couscous', 'Chakhchoukha'],
   },
   {
     id: 2,
@@ -68,6 +75,8 @@ const restaurants = [
     deliveryFee: '100 DA',
     image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400',
     featured: true,
+    wilayaCode: '31',
+    highlights: ['Four bois', 'Pizza Oranaise'],
   },
   {
     id: 3,
@@ -78,6 +87,8 @@ const restaurants = [
     deliveryFee: '120 DA',
     image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400',
     featured: false,
+    wilayaCode: '16',
+    highlights: ['Burger merguez'],
   },
   {
     id: 4,
@@ -88,6 +99,8 @@ const restaurants = [
     deliveryFee: '200 DA',
     image: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=400',
     featured: false,
+    wilayaCode: '16',
+    highlights: ['Fusion nippo-algérienne'],
   },
   {
     id: 5,
@@ -98,6 +111,8 @@ const restaurants = [
     deliveryFee: '80 DA',
     image: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400',
     featured: false,
+    wilayaCode: '09',
+    highlights: ['Makrout moderne'],
   },
   {
     id: 6,
@@ -108,8 +123,12 @@ const restaurants = [
     deliveryFee: '100 DA',
     image: 'https://images.unsplash.com/photo-1565299585323-38174c0a5e0e?w=400',
     featured: false,
+    wilayaCode: '16',
+    highlights: ['Tacos bled style'],
   },
 ];
+
+type RestaurantItem = (typeof restaurants)[number];
 
 
 // Promotions
@@ -170,12 +189,61 @@ const popularDishes = [
   },
 ];
 
+const algerianSpecialties = [
+  {
+    id: 'spec-1',
+    title: 'Plats de fête',
+    description: 'Tadjine hlou, Dolma, Rechta spécial Aïd',
+    image: 'https://images.unsplash.com/photo-1608039829574-3042590a2254?w=400',
+    wilaya: 'Constantine',
+  },
+  {
+    id: 'spec-2',
+    title: 'Pâtisseries orientales',
+    description: 'Makrout, Baklawa, Kalb el louz artisanaux',
+    image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400',
+    wilaya: 'Blida',
+  },
+  {
+    id: 'spec-3',
+    title: 'Boissons locales',
+    description: 'Hamoud Boualem, Ifri, jus naturels',
+    image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400',
+    wilaya: 'Alger',
+  },
+];
+
+const streetFoodHighlights = [
+  {
+    id: 'street-1',
+    title: 'Street food algéroise',
+    items: ['Garantita', 'Karantika', 'M\'hadjeb'],
+    image: 'https://images.unsplash.com/photo-1612198752846-0b5e1e1e7af3?w=400',
+    wilaya: 'Alger',
+  },
+  {
+    id: 'street-2',
+    title: 'Saveurs d\'Oran',
+    items: ['Coca Oranaise', 'Bourek viande'],
+    image: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400',
+    wilaya: 'Oran',
+  },
+  {
+    id: 'street-3',
+    title: 'Constantine gourmand',
+    items: ['Dobara', 'Chakhchoukha', 'Zlabia'],
+    image: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400',
+    wilaya: 'Constantine',
+  },
+];
+
+
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollY = useSharedValue(0);
   const [selectedCategory, setSelectedCategory] = useState(1);
-  const [selectedCity, setSelectedCity] = useState(0);
+  const [selectedWilaya, setSelectedWilaya] = useState(wilayaOptions[0]?.code ?? '16');
   const [searchText, setSearchText] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isLocationModalVisible, setIsLocationModalVisible] = useState(false);
@@ -183,6 +251,32 @@ export default function HomeScreen() {
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const categoryScrollRef = useRef<ScrollView>(null);
+  const colorScheme = useColorScheme();
+  const colorMode = (colorScheme ?? 'light') as 'light' | 'dark';
+  const palette = Colors[colorMode];
+  const styles = useMemo(() => createStyles(palette, colorMode), [palette, colorMode]);
+  const wilayaChips = [
+    { code: 'ALL', name: 'Toutes wilayas' },
+    ...wilayaOptions,
+  ];
+  const selectedWilayaLabel =
+    selectedWilaya === 'ALL'
+      ? 'Algérie'
+      : wilayaOptions.find((w) => w.code === selectedWilaya)?.name ?? 'Alger';
+  const displayedRestaurants = useMemo<RestaurantItem[]>(
+    () =>
+      restaurants.filter((restaurant: RestaurantItem) =>
+        selectedWilaya === 'ALL' ? true : restaurant.wilayaCode === selectedWilaya
+      ),
+    [selectedWilaya]
+  );
+  const toggleFavorite = (restaurantId: number) => {
+    setFavorites((prev) =>
+      prev.includes(restaurantId)
+        ? prev.filter((id: number) => id !== restaurantId)
+        : [...prev, restaurantId]
+    );
+  };
   
   // Filter options
   const filterOptions = [
@@ -196,7 +290,7 @@ export default function HomeScreen() {
 
 
   const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
+    onScroll: (event: NativeScrollEvent) => {
       scrollY.value = event.contentOffset.y;
     },
   });
@@ -234,26 +328,27 @@ export default function HomeScreen() {
           headerAnimatedStyle,
           { 
             paddingTop: insets.top + 10,
-            backgroundColor: '#FFFFFF',
-            borderBottomColor: '#F0F0F0',
           },
         ]}>
         <View style={styles.headerTop}>
           <View style={styles.locationContainer}>
-            <Ionicons name="location" size={20} color="#FF6B6B" />
+            <Ionicons name="location" size={20} color={palette.accent} />
             <TouchableOpacity
               style={styles.locationButton}
               onPress={() => setIsLocationModalVisible(true)}
               activeOpacity={0.7}>
               <ThemedText style={styles.locationText}>
-                {cities[selectedCity]}
+                {selectedWilayaLabel}
               </ThemedText>
-              <Ionicons name="chevron-down" size={16} color="#666" />
+              <Ionicons name="chevron-down" size={16} color={palette.icon} />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.profileButton}>
-            <Ionicons name="person-circle-outline" size={28} color="#333" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <ThemeToggle />
+            <TouchableOpacity style={styles.profileButton}>
+              <Ionicons name="person-circle-outline" size={28} color={palette.text} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search Bar */}
@@ -261,24 +356,21 @@ export default function HomeScreen() {
           styles.searchContainer, 
           searchAnimatedStyle,
           { 
-            backgroundColor: isSearchFocused ? '#FFFFFF' : '#F5F5F5',
+            backgroundColor: isSearchFocused ? palette.surface : palette.surfaceMuted,
             borderWidth: isSearchFocused ? 2 : 1,
-            borderColor: isSearchFocused ? '#FF6B6B' : '#E0E0E0',
+            borderColor: isSearchFocused ? palette.accent : palette.border,
           }
         ]}>
           <Ionicons 
             name="search" 
             size={20} 
-            color={isSearchFocused ? '#FF6B6B' : "#999"} 
+            color={isSearchFocused ? palette.accent : palette.icon} 
             style={styles.searchIcon} 
           />
           <TextInput
-            style={[
-              styles.searchInput,
-              { color: '#000000' }
-            ]}
+            style={styles.searchInput}
             placeholder="Rechercher un restaurant, un plat..."
-            placeholderTextColor="#999"
+            placeholderTextColor={palette.icon}
             value={searchText}
             onChangeText={setSearchText}
             onFocus={() => setIsSearchFocused(true)}
@@ -288,7 +380,7 @@ export default function HomeScreen() {
             <TouchableOpacity 
               onPress={() => setSearchText('')}
               style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color="#999" />
+              <Ionicons name="close-circle" size={20} color={palette.icon} />
             </TouchableOpacity>
           )}
         </Animated.View>
@@ -313,7 +405,7 @@ export default function HomeScreen() {
               style={styles.filterButton}
               onPress={() => setFilterModalVisible(true)}
               activeOpacity={0.7}>
-              <Ionicons name="options-outline" size={20} color="#FF6B6B" />
+              <Ionicons name="options-outline" size={20} color={palette.accent} />
               <ThemedText style={styles.filterButtonText}>
                 {selectedFilters.length > 0 ? `${selectedFilters.length} filtres` : 'Filtrer'}
               </ThemedText>
@@ -333,7 +425,7 @@ export default function HomeScreen() {
                   style={[
                     styles.categoryItem,
                     selectedCategory === category.id && styles.categoryItemActive,
-                    { backgroundColor: selectedCategory === category.id ? category.color : '#F5F5F5' },
+                    { backgroundColor: selectedCategory === category.id ? category.color : palette.surfaceMuted },
                   ]}
                   onPress={() => handleCategoryPress(category.id, index)}
                   activeOpacity={0.8}>
@@ -353,6 +445,40 @@ export default function HomeScreen() {
                   </ThemedText>
                 </TouchableOpacity>
               </Animated.View>
+            ))}
+          </ScrollView>
+
+          <View style={styles.wilayaHeader}>
+            <ThemedText type="defaultSemiBold" style={styles.wilayaTitle}>
+              Livraison par wilaya
+            </ThemedText>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.wilayaChips}>
+            {wilayaChips.map((wilaya) => (
+              <TouchableOpacity
+                key={wilaya.code}
+                style={[
+                  styles.wilayaChip,
+                  selectedWilaya === wilaya.code && styles.wilayaChipActive,
+                ]}
+                onPress={() => setSelectedWilaya(wilaya.code)}
+                activeOpacity={0.7}>
+                <Ionicons
+                  name="location"
+                  size={14}
+                  color={selectedWilaya === wilaya.code ? '#FFFFFF' : palette.icon}
+                />
+                <ThemedText
+                  style={[
+                    styles.wilayaChipText,
+                    selectedWilaya === wilaya.code && styles.wilayaChipTextActive,
+                  ]}>
+                  {wilaya.name}
+                </ThemedText>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </Animated.View>
@@ -406,6 +532,41 @@ export default function HomeScreen() {
           </ScrollView>
         </Animated.View>
 
+        {/* Algerian Specialties */}
+        <Animated.View entering={FadeInUp.duration(600).delay(300)} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Saveurs d'Algérie
+            </ThemedText>
+            <TouchableOpacity>
+              <ThemedText style={styles.seeAllText}>Découvrir</ThemedText>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.specialtyContainer}>
+            {algerianSpecialties.map((spec: (typeof algerianSpecialties)[number], index: number) => (
+              <Animated.View
+                key={spec.id}
+                entering={FadeInRight.duration(500).delay(350 + index * 120)}>
+                <View style={styles.specialtyCard}>
+                  <Image source={{ uri: spec.image }} style={styles.specialtyImage} contentFit="cover" />
+                  <LinearGradient colors={['transparent', palette.overlay]} style={styles.specialtyGradient} />
+                  <View style={styles.specialtyContent}>
+                    <View style={styles.specialtyBadge}>
+                      <Ionicons name="pin" size={12} color={palette.accent} />
+                      <ThemedText style={styles.specialtyBadgeText}>{spec.wilaya}</ThemedText>
+                    </View>
+                    <ThemedText style={styles.specialtyTitle}>{spec.title}</ThemedText>
+                    <ThemedText style={styles.specialtyDescription}>{spec.description}</ThemedText>
+                  </View>
+                </View>
+              </Animated.View>
+            ))}
+          </ScrollView>
+        </Animated.View>
+
         {/* Featured Restaurants */}
         <Animated.View
           entering={FadeInUp.duration(600).delay(200)}
@@ -422,17 +583,14 @@ export default function HomeScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.restaurantsContainer}>
-            {restaurants
-              .filter((r) => r.featured)
-              .map((restaurant, index) => (
+            {displayedRestaurants
+              .filter((r: RestaurantItem) => r.featured)
+              .map((restaurant: RestaurantItem, index: number) => (
                 <Animated.View
                   key={restaurant.id}
                   entering={FadeInRight.duration(500).delay(300 + index * 100)}>
-                  <TouchableOpacity 
-                    style={[
-                      styles.restaurantCard,
-                      { backgroundColor: '#FFFFFF' }
-                    ]}
+                <TouchableOpacity 
+                  style={styles.restaurantCard}
                     onPress={() => router.push(`/restaurant/${restaurant.id}`)}>
                     <View style={styles.restaurantImageContainer}>
                       <Image
@@ -443,7 +601,7 @@ export default function HomeScreen() {
                         transition={200}
                       />
                       <LinearGradient
-                        colors={['transparent', 'rgba(0,0,0,0.7)']}
+                        colors={['transparent', palette.overlay]}
                         style={styles.restaurantImageGradient}
                       />
                       <View style={styles.ratingBadge}>
@@ -454,18 +612,11 @@ export default function HomeScreen() {
                       </View>
                       <TouchableOpacity
                         style={styles.favoriteButton}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setFavorites(
-                            favorites.includes(restaurant.id)
-                              ? favorites.filter(id => id !== restaurant.id)
-                              : [...favorites, restaurant.id]
-                          );
-                        }}>
+                        onPress={() => toggleFavorite(restaurant.id)}>
                         <Ionicons
                           name={favorites.includes(restaurant.id) ? 'heart' : 'heart-outline'}
                           size={20}
-                          color={favorites.includes(restaurant.id) ? '#FF6B6B' : '#FFFFFF'}
+                          color={favorites.includes(restaurant.id) ? palette.accent : '#FFFFFF'}
                         />
                       </TouchableOpacity>
                     </View>
@@ -478,13 +629,13 @@ export default function HomeScreen() {
                       </ThemedText>
                       <View style={styles.restaurantMeta}>
                         <View style={styles.metaItem}>
-                          <Ionicons name="time-outline" size={14} color="#666" />
+                          <Ionicons name="time-outline" size={14} color={palette.icon} />
                           <ThemedText style={styles.metaText}>
                             {restaurant.deliveryTime}
                           </ThemedText>
                         </View>
                         <View style={styles.metaItem}>
-                          <Ionicons name="cash-outline" size={14} color="#666" />
+                          <Ionicons name="cash-outline" size={14} color={palette.icon} />
                           <ThemedText style={styles.metaText}>
                             {restaurant.deliveryFee}
                           </ThemedText>
@@ -494,6 +645,45 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 </Animated.View>
               ))}
+          </ScrollView>
+        </Animated.View>
+
+        {/* Street Food */}
+        <Animated.View entering={FadeInUp.duration(600).delay(350)} style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Street food algérienne
+            </ThemedText>
+            <TouchableOpacity>
+              <ThemedText style={styles.seeAllText}>Explorer</ThemedText>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.streetContainer}>
+            {streetFoodHighlights.map((spot: (typeof streetFoodHighlights)[number], index: number) => (
+              <Animated.View
+                key={spot.id}
+                entering={FadeInRight.duration(500).delay(400 + index * 120)}>
+                <View style={styles.streetCard}>
+                  <Image source={{ uri: spot.image }} style={styles.streetImage} contentFit="cover" />
+                  <View style={styles.streetContent}>
+                    <View style={styles.streetBadge}>
+                      <Ionicons name="location" size={12} color="#FFFFFF" />
+                      <ThemedText style={styles.streetBadgeText}>{spot.wilaya}</ThemedText>
+                    </View>
+                    <ThemedText style={styles.streetTitle}>{spot.title}</ThemedText>
+                    {spot.items.map((item) => (
+                      <View key={item} style={styles.streetItemRow}>
+                        <View style={styles.streetDot} />
+                        <ThemedText style={styles.streetItemText}>{item}</ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </Animated.View>
+            ))}
           </ScrollView>
         </Animated.View>
 
@@ -510,15 +700,12 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.restaurantsGrid}>
-            {restaurants.map((restaurant, index) => (
+            {displayedRestaurants.map((restaurant: RestaurantItem, index: number) => (
               <Animated.View
                 key={restaurant.id}
                 entering={FadeInUp.duration(500).delay(500 + index * 100)}>
                 <TouchableOpacity
-                  style={[
-                    styles.restaurantCardSmall,
-                    { backgroundColor: '#FFFFFF' },
-                  ]}
+                  style={styles.restaurantCardSmall}
                   onPress={() => router.push(`/restaurant/${restaurant.id}`)}>
         <Image
                     source={{ uri: restaurant.image }}
@@ -543,18 +730,11 @@ export default function HomeScreen() {
                       </View>
                       <TouchableOpacity
                         style={styles.favoriteButtonSmall}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setFavorites(
-                            favorites.includes(restaurant.id)
-                              ? favorites.filter(id => id !== restaurant.id)
-                              : [...favorites, restaurant.id]
-                          );
-                        }}>
+                        onPress={() => toggleFavorite(restaurant.id)}>
                         <Ionicons
                           name={favorites.includes(restaurant.id) ? 'heart' : 'heart-outline'}
                           size={18}
-                          color={favorites.includes(restaurant.id) ? '#FF6B6B' : '#999'}
+                          color={favorites.includes(restaurant.id) ? palette.accent : palette.icon}
                         />
                       </TouchableOpacity>
                     </View>
@@ -565,13 +745,13 @@ export default function HomeScreen() {
                     </ThemedText>
                     <View style={styles.restaurantMetaSmall}>
                       <View style={styles.metaItem}>
-                        <Ionicons name="time-outline" size={12} color="#666" />
+                        <Ionicons name="time-outline" size={12} color={palette.icon} />
                         <ThemedText style={styles.metaTextSmall}>
                           {restaurant.deliveryTime}
                         </ThemedText>
                       </View>
                       <View style={styles.metaItem}>
-                        <Ionicons name="cash-outline" size={12} color="#666" />
+                        <Ionicons name="cash-outline" size={12} color={palette.icon} />
                         <ThemedText style={styles.metaTextSmall}>
                           {restaurant.deliveryFee}
                         </ThemedText>
@@ -600,14 +780,11 @@ export default function HomeScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.dishesContainer}>
-            {popularDishes.map((dish, index) => (
+            {popularDishes.map((dish: (typeof popularDishes)[number], index: number) => (
               <Animated.View
                 key={dish.id}
                 entering={FadeInRight.duration(500).delay(700 + index * 100)}>
-                <TouchableOpacity style={[
-                  styles.dishCard,
-                  { backgroundColor: '#FFFFFF' }
-                ]}>
+                <TouchableOpacity style={styles.dishCard}>
                   <Image
                     source={{ uri: dish.image }}
                     style={styles.dishImage}
@@ -655,10 +832,7 @@ export default function HomeScreen() {
           style={styles.modalOverlay}
           onPress={() => setIsLocationModalVisible(false)}>
           <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: '#FFFFFF' },
-            ]}
+            style={styles.modalContent}
             onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
               <ThemedText type="subtitle" style={styles.modalTitle}>
@@ -668,43 +842,43 @@ export default function HomeScreen() {
                 <Ionicons
                   name="close"
                   size={24}
-                  color="#000"
+                  color={palette.text}
                 />
               </TouchableOpacity>
             </View>
             <FlatList
-              data={cities}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item, index }) => (
+              data={wilayaOptions}
+              keyExtractor={(item) => item.code}
+              renderItem={({ item }: { item: typeof wilayaOptions[number] }) => (
                 <TouchableOpacity
                   style={[
                     styles.cityItem,
                     {
                       backgroundColor:
-                        selectedCity === index
-                          ? '#F5F5F5'
+                        selectedWilaya === item.code
+                          ? palette.surfaceMuted
                           : 'transparent',
                     },
                   ]}
                   onPress={() => {
-                    setSelectedCity(index);
+                    setSelectedWilaya(item.code);
                     setIsLocationModalVisible(false);
                   }}
                   activeOpacity={0.7}>
                   <Ionicons
                     name="location"
                     size={20}
-                    color={selectedCity === index ? '#FF6B6B' : '#999'}
+                    color={selectedWilaya === item.code ? palette.accent : palette.icon}
                   />
                   <ThemedText
                     style={[
                       styles.cityItemText,
-                      selectedCity === index && styles.cityItemTextSelected,
+                      selectedWilaya === item.code && styles.cityItemTextSelected,
                     ]}>
-                    {item}
+                    {item.name}
         </ThemedText>
-                  {selectedCity === index && (
-                    <Ionicons name="checkmark-circle" size={24} color="#FF6B6B" />
+                  {selectedWilaya === item.code && (
+                    <Ionicons name="checkmark-circle" size={24} color={palette.accent} />
                   )}
                 </TouchableOpacity>
               )}
@@ -723,18 +897,18 @@ export default function HomeScreen() {
           style={styles.modalOverlay}
           onPress={() => setFilterModalVisible(false)}>
           <View
-            style={[styles.filterModalContent, { backgroundColor: '#FFFFFF' }]}
+            style={styles.filterModalContent}
             onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
               <ThemedText type="subtitle" style={styles.modalTitle}>
                 Filtrer les restaurants
               </ThemedText>
               <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#000" />
+                <Ionicons name="close" size={24} color={palette.text} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.filterOptionsList}>
-              {filterOptions.map((filter) => {
+              {filterOptions.map((filter: (typeof filterOptions)[number]) => {
                 const isSelected = selectedFilters.includes(filter.id);
                 return (
                   <TouchableOpacity
@@ -745,7 +919,7 @@ export default function HomeScreen() {
                     ]}
                     onPress={() => {
                       if (isSelected) {
-                        setSelectedFilters(selectedFilters.filter(id => id !== filter.id));
+                        setSelectedFilters(selectedFilters.filter((id: string) => id !== filter.id));
                       } else {
                         setSelectedFilters([...selectedFilters, filter.id]);
                       }
@@ -759,7 +933,7 @@ export default function HomeScreen() {
                         <Ionicons
                           name={filter.icon as any}
                           size={20}
-                          color={isSelected ? '#FFFFFF' : '#FF6B6B'}
+                          color={isSelected ? '#FFFFFF' : palette.accent}
                         />
                       </View>
                       <ThemedText
@@ -771,7 +945,7 @@ export default function HomeScreen() {
                       </ThemedText>
                     </View>
                     {isSelected && (
-                      <Ionicons name="checkmark-circle" size={24} color="#FF6B6B" />
+                      <Ionicons name="checkmark-circle" size={24} color={palette.accent} />
                     )}
                   </TouchableOpacity>
                 );
@@ -798,672 +972,833 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9F9F9',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 18,
-    borderBottomWidth: 0,
-    backgroundColor: '#FFFFFF',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  locationText: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginRight: 4,
-    color: '#1A1A1A',
-  },
-  profileButton: {
-    padding: 4,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-  },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '500',
-    padding: 0,
-    color: '#1A1A1A',
-  },
-  clearButton: {
-    marginLeft: 8,
-    padding: 4,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-    backgroundColor: '#F9F9F9',
-  },
-  section: {
-    marginTop: 24,
-    backgroundColor: '#FFFFFF',
-    paddingTop: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    color: '#000000',
-  },
-  seeAllText: {
-    fontSize: 15,
-    color: '#FF6B6B',
-    fontWeight: '700',
-  },
-  categoriesContainer: {
-    paddingHorizontal: 20,
-    paddingRight: 40,
-  },
-  categoryItem: {
-    width: CATEGORY_ITEM_WIDTH,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    borderRadius: 18,
-    marginRight: 12,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  categoryItemActive: {
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  categoryEmoji: {
-    fontSize: 28,
-    marginBottom: 6,
-  },
-  categoryName: {
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
-    color: '#1A1A1A',
-  },
-  categoryNameActive: {
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  restaurantsContainer: {
-    paddingHorizontal: 20,
-    paddingRight: 40,
-  },
-  restaurantCard: {
-    width: SCREEN_WIDTH * 0.78,
-    marginRight: 15,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  restaurantImageContainer: {
-    width: '100%',
-    height: 180,
-    position: 'relative',
-  },
-  restaurantImage: {
-    width: '100%',
-    height: '100%',
-  },
-  restaurantImageGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 80,
-  },
-  ratingBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  ratingText: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginLeft: 4,
-    color: '#1A1A1A',
-  },
-  restaurantInfo: {
-    padding: 15,
-  },
-  restaurantName: {
-    fontSize: 18,
-    marginBottom: 4,
-    color: '#000000',
-    fontWeight: '700',
-  },
-  restaurantCuisine: {
-    fontSize: 14,
-    color: '#4A4A4A',
-    marginBottom: 10,
-    fontWeight: '500',
-  },
-  restaurantMeta: {
-    flexDirection: 'row',
-    gap: 15,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 13,
-    color: '#4A4A4A',
-    fontWeight: '500',
-  },
-  restaurantsGrid: {
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  restaurantCardSmall: {
-    width: (SCREEN_WIDTH - 50) / 2,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 15,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.12,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  restaurantImageSmall: {
-    width: '100%',
-    height: 120,
-  },
-  restaurantInfoSmall: {
-    padding: 12,
-  },
-  restaurantHeaderSmall: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-  },
-  restaurantNameSmall: {
-    fontSize: 15,
-    flex: 1,
-    marginRight: 8,
-    color: '#000000',
-    fontWeight: '700',
-  },
-  ratingBadgeSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF9E6',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  ratingTextSmall: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 2,
-    color: '#1A1A1A',
-  },
-  restaurantCuisineSmall: {
-    fontSize: 12,
-    color: '#4A4A4A',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  restaurantMetaSmall: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  metaTextSmall: {
-    fontSize: 12,
-    color: '#4A4A4A',
-    fontWeight: '500',
-  },
-  dishesContainer: {
-    paddingHorizontal: 20,
-    paddingRight: 40,
-  },
-  dishCard: {
-    width: 220,
-    marginRight: 15,
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
-  },
-  dishImage: {
-    width: '100%',
-    height: 140,
-  },
-  dishInfo: {
-    padding: 12,
-  },
-  dishName: {
-    fontSize: 16,
-    marginBottom: 4,
-    color: '#000000',
-    fontWeight: '700',
-  },
-  dishRestaurant: {
-    fontSize: 13,
-    color: '#4A4A4A',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  dishHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  dishRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF9E6',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 2,
-  },
-  dishRatingText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1A1A1A',
-  },
-  dishFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  dishPrice: {
-    fontSize: 16,
-    color: '#FF6B6B',
-    fontWeight: '700',
-  },
-  addToCartButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FF6B6B',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  favoriteButton: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  favoriteButtonSmall: {
-    padding: 4,
-  },
-  filterSection: {
-    backgroundColor: '#FFFFFF',
-    paddingTop: 20,
-    paddingBottom: 20,
-    marginTop: 0,
-  },
-  filterHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  filterTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    color: '#000000',
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF5F5',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-  },
-  filterButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FF6B6B',
-  },
-  categoryIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  categoryIconContainerActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    transform: [{ scale: 1.1 }],
-  },
-  promotionsContainer: {
-    paddingHorizontal: 20,
-    paddingRight: 40,
-  },
-  promotionCard: {
-    width: SCREEN_WIDTH * 0.85,
-    height: 200,
-    borderRadius: 24,
-    overflow: 'hidden',
-    marginRight: 15,
-    position: 'relative',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  promotionImage: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
-  },
-  promotionGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '100%',
-  },
-  promotionContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-  },
-  promotionBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  promotionBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1A1A1A',
-  },
-  promotionTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  promotionSubtitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    opacity: 0.95,
-    marginBottom: 6,
-  },
-  promotionRestaurant: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#FFFFFF',
-    opacity: 0.85,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 20,
-    padding: 20,
-    maxHeight: '70%',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.3,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 10,
-      },
-    }),
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  cityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  cityItemText: {
-    flex: 1,
-    fontSize: 16,
-    marginLeft: 12,
-  },
-  cityItemTextSelected: {
-    fontWeight: '700',
-    color: '#FF6B6B',
-  },
-  filterModalContent: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 24,
-    padding: 20,
-    maxHeight: '80%',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 10,
-      },
-    }),
-  },
-  filterOptionsList: {
-    maxHeight: 400,
-  },
-  filterOptionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    backgroundColor: '#F5F5F5',
-  },
-  filterOptionItemSelected: {
-    backgroundColor: '#FFF5F5',
-    borderWidth: 2,
-    borderColor: '#FF6B6B',
-  },
-  filterOptionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  filterOptionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF5F5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  filterOptionIconSelected: {
-    backgroundColor: '#FF6B6B',
-  },
-  filterOptionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  filterOptionLabelSelected: {
-    color: '#FF6B6B',
-    fontWeight: '700',
-  },
-  filterModalFooter: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-  },
-  resetFilterButton: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: '#F5F5F5',
-    alignItems: 'center',
-  },
-  resetFilterText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4A4A4A',
-  },
-  applyFilterButton: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: '#FF6B6B',
-    alignItems: 'center',
-  },
-  applyFilterText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});
+const createStyles = (palette: typeof Colors.light, scheme: 'light' | 'dark') =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: palette.background,
+    },
+    header: {
+      paddingHorizontal: 20,
+      paddingBottom: 18,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.border,
+      backgroundColor: palette.surface,
+      ...Platform.select({
+        ios: {
+          shadowColor: palette.heroShadow,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.18,
+          shadowRadius: 12,
+        },
+        android: {
+          elevation: 6,
+        },
+      }),
+    },
+    headerTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    locationContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    locationButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginLeft: 8,
+    },
+    locationText: {
+      fontSize: 16,
+      fontWeight: '700',
+      marginRight: 4,
+      color: palette.text,
+    },
+    profileButton: {
+      padding: 4,
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 16,
+      paddingHorizontal: 18,
+      paddingVertical: 14,
+    },
+    searchIcon: {
+      marginRight: 12,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: '500',
+      padding: 0,
+      color: palette.text,
+    },
+    clearButton: {
+      marginLeft: 8,
+      padding: 4,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingBottom: 20,
+      backgroundColor: palette.background,
+    },
+    section: {
+      marginTop: 24,
+      backgroundColor: palette.card,
+      paddingTop: 20,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      marginBottom: 16,
+    },
+    sectionTitle: {
+      fontSize: 24,
+      fontWeight: '800',
+      letterSpacing: -0.5,
+      color: palette.text,
+    },
+    seeAllText: {
+      fontSize: 15,
+      color: palette.accent,
+      fontWeight: '700',
+    },
+    categoriesContainer: {
+      paddingHorizontal: 20,
+      paddingRight: 40,
+    },
+    categoryItem: {
+      width: CATEGORY_ITEM_WIDTH,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 8,
+      borderRadius: 18,
+      marginRight: 12,
+      backgroundColor: palette.surfaceMuted,
+      ...Platform.select({
+        ios: {
+          shadowColor: palette.heroShadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
+    },
+    categoryItemActive: {
+      ...Platform.select({
+        ios: {
+          shadowColor: palette.heroShadow,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 6,
+        },
+      }),
+    },
+    categoryEmoji: {
+      fontSize: 28,
+      marginBottom: 6,
+    },
+    categoryName: {
+      fontSize: 13,
+      fontWeight: '600',
+      textAlign: 'center',
+      color: palette.text,
+    },
+    categoryNameActive: {
+      fontWeight: '700',
+      color: palette.surface,
+    },
+    restaurantsContainer: {
+      paddingHorizontal: 20,
+      paddingRight: 40,
+    },
+    restaurantCard: {
+      width: SCREEN_WIDTH * 0.78,
+      marginRight: 15,
+      borderRadius: 20,
+      overflow: 'hidden',
+      backgroundColor: palette.card,
+      ...Platform.select({
+        ios: {
+          shadowColor: palette.heroShadow,
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
+        },
+        android: {
+          elevation: 8,
+        },
+      }),
+    },
+    restaurantImageContainer: {
+      width: '100%',
+      height: 180,
+      position: 'relative',
+    },
+    restaurantImage: {
+      width: '100%',
+      height: '100%',
+    },
+    restaurantImageGradient: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 80,
+    },
+    ratingBadge: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: palette.glass,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    ratingText: {
+      fontSize: 13,
+      fontWeight: '700',
+      marginLeft: 4,
+      color: palette.text,
+    },
+    restaurantInfo: {
+      padding: 15,
+    },
+    restaurantName: {
+      fontSize: 18,
+      marginBottom: 4,
+      color: palette.text,
+      fontWeight: '700',
+    },
+    restaurantCuisine: {
+      fontSize: 14,
+      color: palette.textMuted,
+      marginBottom: 10,
+      fontWeight: '500',
+    },
+    restaurantMeta: {
+      flexDirection: 'row',
+      gap: 15,
+    },
+    metaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    metaText: {
+      fontSize: 13,
+      color: palette.textMuted,
+      fontWeight: '500',
+    },
+    restaurantsGrid: {
+      paddingHorizontal: 20,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    restaurantCardSmall: {
+      width: (SCREEN_WIDTH - 50) / 2,
+      borderRadius: 16,
+      overflow: 'hidden',
+      marginBottom: 15,
+      backgroundColor: palette.card,
+      ...Platform.select({
+        ios: {
+          shadowColor: palette.heroShadow,
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.12,
+          shadowRadius: 6,
+        },
+        android: {
+          elevation: 4,
+        },
+      }),
+    },
+    restaurantImageSmall: {
+      width: '100%',
+      height: 120,
+    },
+    restaurantInfoSmall: {
+      padding: 12,
+    },
+    restaurantHeaderSmall: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 4,
+    },
+    restaurantNameSmall: {
+      fontSize: 15,
+      flex: 1,
+      marginRight: 8,
+      color: palette.text,
+      fontWeight: '700',
+    },
+    ratingBadgeSmall: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: palette.chip,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 8,
+    },
+    ratingTextSmall: {
+      fontSize: 12,
+      fontWeight: '700',
+      marginLeft: 2,
+      color: palette.text,
+    },
+    restaurantCuisineSmall: {
+      fontSize: 12,
+      color: palette.textMuted,
+      marginBottom: 8,
+      fontWeight: '500',
+    },
+    restaurantMetaSmall: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    metaTextSmall: {
+      fontSize: 12,
+      color: palette.textMuted,
+      fontWeight: '500',
+    },
+    dishesContainer: {
+      paddingHorizontal: 20,
+      paddingRight: 40,
+    },
+    dishCard: {
+      width: 220,
+      marginRight: 15,
+      borderRadius: 18,
+      overflow: 'hidden',
+      backgroundColor: palette.card,
+      ...Platform.select({
+        ios: {
+          shadowColor: palette.heroShadow,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.12,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 5,
+        },
+      }),
+    },
+    dishImage: {
+      width: '100%',
+      height: 140,
+    },
+    dishInfo: {
+      padding: 12,
+    },
+    dishName: {
+      fontSize: 16,
+      marginBottom: 4,
+      color: palette.text,
+      fontWeight: '700',
+    },
+    dishRestaurant: {
+      fontSize: 13,
+      color: palette.textMuted,
+      marginBottom: 8,
+      fontWeight: '500',
+    },
+    dishHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    dishRating: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: palette.chip,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 8,
+      gap: 2,
+    },
+    dishRatingText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: palette.text,
+    },
+    dishFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    dishPrice: {
+      fontSize: 16,
+      color: palette.accent,
+      fontWeight: '700',
+    },
+    addToCartButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: palette.accent,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    favoriteButton: {
+      position: 'absolute',
+      top: 12,
+      left: 12,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: palette.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    favoriteButtonSmall: {
+      padding: 4,
+    },
+    filterSection: {
+      backgroundColor: palette.card,
+      paddingTop: 20,
+      paddingBottom: 20,
+      marginTop: 0,
+    },
+    wilayaHeader: {
+      paddingHorizontal: 20,
+      marginTop: 18,
+      marginBottom: 8,
+    },
+    wilayaTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: palette.text,
+    },
+    wilayaChips: {
+      paddingHorizontal: 20,
+      paddingRight: 40,
+      gap: 10,
+    },
+    wilayaChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 999,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      backgroundColor: palette.surfaceMuted,
+      marginRight: 10,
+      gap: 6,
+    },
+    wilayaChipActive: {
+      backgroundColor: palette.accent,
+    },
+    wilayaChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: palette.text,
+    },
+    wilayaChipTextActive: {
+      color: '#FFFFFF',
+    },
+    filterHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      marginBottom: 16,
+    },
+    filterTitle: {
+      fontSize: 24,
+      fontWeight: '800',
+      letterSpacing: -0.5,
+      color: palette.text,
+    },
+    filterButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: palette.accentMuted,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      gap: 6,
+    },
+    filterButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: palette.accent,
+    },
+    categoryIconContainer: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: palette.glass,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    categoryIconContainerActive: {
+      backgroundColor: palette.glass,
+      transform: [{ scale: 1.1 }],
+    },
+    promotionsContainer: {
+      paddingHorizontal: 20,
+      paddingRight: 40,
+    },
+    promotionCard: {
+      width: SCREEN_WIDTH * 0.85,
+      height: 200,
+      borderRadius: 24,
+      overflow: 'hidden',
+      marginRight: 15,
+      position: 'relative',
+      ...Platform.select({
+        ios: {
+          shadowColor: palette.heroShadow,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
+        },
+        android: {
+          elevation: 6,
+        },
+      }),
+    },
+    promotionImage: {
+      width: '100%',
+      height: '100%',
+      position: 'absolute',
+    },
+    promotionGradient: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: '100%',
+    },
+    promotionContent: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: 20,
+    },
+    promotionBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: palette.glass,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+      marginBottom: 8,
+    },
+    promotionBadgeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: palette.text,
+    },
+    promotionTitle: {
+      fontSize: 26,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      marginBottom: 4,
+    },
+    promotionSubtitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#FFFFFF',
+      opacity: 0.95,
+      marginBottom: 6,
+    },
+    promotionRestaurant: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: '#FFFFFF',
+      opacity: 0.85,
+    },
+    specialtyContainer: {
+      paddingHorizontal: 20,
+      paddingRight: 40,
+    },
+    specialtyCard: {
+      width: SCREEN_WIDTH * 0.7,
+      height: 200,
+      borderRadius: 20,
+      overflow: 'hidden',
+      marginRight: 15,
+      position: 'relative',
+    },
+    specialtyImage: {
+      width: '100%',
+      height: '100%',
+    },
+    specialtyGradient: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: '100%',
+    },
+    specialtyContent: {
+      position: 'absolute',
+      bottom: 0,
+      padding: 16,
+      gap: 6,
+    },
+    specialtyBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: palette.glass,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    specialtyBadgeText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: palette.text,
+    },
+    specialtyTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: '#FFFFFF',
+    },
+    specialtyDescription: {
+      fontSize: 14,
+      color: '#F8FAFC',
+      opacity: 0.9,
+    },
+    streetContainer: {
+      paddingHorizontal: 20,
+      paddingRight: 40,
+    },
+    streetCard: {
+      width: SCREEN_WIDTH * 0.75,
+      borderRadius: 20,
+      backgroundColor: palette.card,
+      marginRight: 15,
+      overflow: 'hidden',
+      ...Platform.select({
+        ios: { shadowColor: palette.heroShadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 },
+        android: { elevation: 4 },
+      }),
+    },
+    streetImage: {
+      width: '100%',
+      height: 140,
+    },
+    streetContent: {
+      padding: 16,
+      gap: 6,
+    },
+    streetBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      alignSelf: 'flex-start',
+      backgroundColor: palette.accent,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    streetBadgeText: {
+      fontSize: 12,
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+    streetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: palette.text,
+    },
+    streetItemRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    streetDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: palette.accent,
+    },
+    streetItemText: {
+      fontSize: 13,
+      color: palette.textMuted,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: palette.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    modalContent: {
+      width: '100%',
+      maxWidth: 400,
+      borderRadius: 20,
+      padding: 20,
+      maxHeight: '70%',
+      backgroundColor: palette.surface,
+      ...Platform.select({
+        ios: {
+          shadowColor: palette.heroShadow,
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.3,
+          shadowRadius: 20,
+        },
+        android: {
+          elevation: 10,
+        },
+      }),
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: palette.text,
+    },
+    cityItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 8,
+    },
+    cityItemText: {
+      flex: 1,
+      fontSize: 16,
+      marginLeft: 12,
+      color: palette.text,
+    },
+    cityItemTextSelected: {
+      fontWeight: '700',
+      color: palette.accent,
+    },
+    filterModalContent: {
+      width: '100%',
+      maxWidth: 400,
+      borderRadius: 24,
+      padding: 20,
+      maxHeight: '80%',
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: palette.surface,
+      ...Platform.select({
+        ios: {
+          shadowColor: palette.heroShadow,
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.2,
+          shadowRadius: 12,
+        },
+        android: {
+          elevation: 10,
+        },
+      }),
+    },
+    filterOptionsList: {
+      maxHeight: 400,
+    },
+    filterOptionItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 8,
+      backgroundColor: palette.surfaceMuted,
+    },
+    filterOptionItemSelected: {
+      backgroundColor: palette.accentMuted,
+      borderWidth: 2,
+      borderColor: palette.accent,
+    },
+    filterOptionLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    filterOptionIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: palette.accentMuted,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    filterOptionIconSelected: {
+      backgroundColor: palette.accent,
+    },
+    filterOptionLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: palette.text,
+    },
+    filterOptionLabelSelected: {
+      color: palette.accent,
+      fontWeight: '700',
+    },
+    filterModalFooter: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 20,
+      paddingTop: 20,
+      borderTopWidth: 1,
+      borderTopColor: palette.border,
+    },
+    resetFilterButton: {
+      flex: 1,
+      padding: 14,
+      borderRadius: 12,
+      backgroundColor: palette.surfaceMuted,
+      alignItems: 'center',
+    },
+    resetFilterText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: palette.textMuted,
+    },
+    applyFilterButton: {
+      flex: 1,
+      padding: 14,
+      borderRadius: 12,
+      backgroundColor: palette.accent,
+      alignItems: 'center',
+    },
+    applyFilterText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+  });
 

@@ -8,6 +8,44 @@ export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
 };
 
+const TYPE_STYLES = StyleSheet.create({
+  default: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '400',
+  },
+  defaultSemiBold: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '600',
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '800',
+    lineHeight: 40,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 28,
+  },
+  link: {
+    lineHeight: 30,
+    fontSize: 16,
+    fontWeight: '600',
+    textDecorationLine: 'none',
+  },
+});
+
+const typeColorMap: Record<NonNullable<ThemedTextProps['type']>, keyof typeof TYPE_STYLES> = {
+  default: 'default',
+  defaultSemiBold: 'defaultSemiBold',
+  title: 'title',
+  subtitle: 'subtitle',
+  link: 'link',
+};
+
 export function ThemedText({
   style,
   lightColor,
@@ -15,63 +53,17 @@ export function ThemedText({
   type = 'default',
   ...rest
 }: ThemedTextProps) {
-  // Force light mode colors for better visibility
-  const defaultColors: Record<string, string> = {
-    default: '#1A1A1A',
-    defaultSemiBold: '#1A1A1A',
-    title: '#000000',
-    subtitle: '#1A1A1A',
-    link: '#FF6B6B',
-  };
-  
-  const color = lightColor || defaultColors[type] || '#1A1A1A';
+  const token = type === 'link' ? 'tint' : 'text';
+  const color = useThemeColor({ light: lightColor, dark: darkColor }, token);
 
   return (
     <Text
       style={[
         { color },
-        type === 'default' ? styles.default : undefined,
-        type === 'title' ? styles.title : undefined,
-        type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
-        type === 'subtitle' ? styles.subtitle : undefined,
-        type === 'link' ? styles.link : undefined,
+        TYPE_STYLES[typeColorMap[type]],
         style,
       ]}
       {...rest}
     />
   );
 }
-
-const styles = StyleSheet.create({
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#1A1A1A',
-    fontWeight: '400',
-  },
-  defaultSemiBold: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    lineHeight: 40,
-    color: '#000000',
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    lineHeight: 28,
-    color: '#1A1A1A',
-  },
-  link: {
-    lineHeight: 30,
-    fontSize: 16,
-    color: '#FF6B6B',
-    fontWeight: '600',
-  },
-});
